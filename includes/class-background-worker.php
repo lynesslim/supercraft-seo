@@ -8,6 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * 
  * Manages server-side asynchronous background processing for batch Technical SEO
  * audit and AI meta generation with pause/stop capability.
+ * Runs 100% asynchronously on the server — users can freely navigate off or close browser.
  */
 class Supercraft_SEO_Background_Worker {
 
@@ -109,6 +110,7 @@ class Supercraft_SEO_Background_Worker {
 
 	/**
 	 * Process the next item in the background queue.
+	 * Automatically promotes H1 headings if missing and generates AI metadata.
 	 *
 	 * @return bool True if item was processed, false if queue is empty or stopped.
 	 */
@@ -130,7 +132,14 @@ class Supercraft_SEO_Background_Worker {
 		// 1. Extract Elementor Copy
 		$page_data = $this->main->elementor_parser->get_page_content( $post_id );
 
-		// 2. Generate AI Metadata
+		// 2. Auto-Fix H1 Heading if missing
+		$h1_count = count( isset( $page_data['headings']['h1'] ) ? $page_data['headings']['h1'] : array() );
+		if ( 0 === $h1_count ) {
+			$this->main->elementor_parser->promote_first_heading_to_h1( $post_id );
+			$page_data = $this->main->elementor_parser->get_page_content( $post_id );
+		}
+
+		// 3. Generate AI Metadata
 		$seo_generated = false;
 		$seo_data      = array();
 		$openai_error  = null;
@@ -143,11 +152,11 @@ class Supercraft_SEO_Background_Worker {
 		} else {
 			$seo_data      = $ai_res;
 			$seo_generated = true;
-			// 3. Save into AIOSEO
+			// 4. Save into AIOSEO
 			$this->main->aioseo_bridge->save_seo_metadata( $post_id, $seo_data );
 		}
 
-		// 4. Audit
+		// 5. Audit
 		$audit_result = $this->main->seo_auditor->run_audit( $post_id, $page_data, $seo_data );
 
 		$result_item = array(

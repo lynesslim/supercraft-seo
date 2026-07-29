@@ -117,7 +117,7 @@
 			});
 		});
 
-		// Fix All Pages Site-Wide H1 with Live Progress Bar
+		// Fix All Pages Site-Wide H1 via Server Async Background Queue
 		$('#btn-h1-fix-all').on('click', function () {
 			$('#supercraft-h1-modal').fadeOut();
 			
@@ -142,48 +142,28 @@
 				return;
 			}
 
-			// Show Live Progress Bar
+			// Launch Server Async Background Queue
+			$('#supercraft-start-oneclick').prop('disabled', true).addClass('processing');
+			$('#supercraft-stop-bg').show();
 			$('#supercraft-progress-container').slideDown();
-			$('#supercraft-progress-text').text('Fixing site-wide H1 headings... (0/' + targetIds.length + ' pages complete)');
-			$('#supercraft-progress-percent').text('0%');
-			$('#supercraft-progress-bar-fill').css('width', '0%');
+			$('#supercraft-progress-text').text('Initializing server background queue for ' + targetIds.length + ' pages...');
 
-			var processedCount = 0;
-			var totalCount = targetIds.length;
-
-			function processNextH1(index) {
-				if (index >= totalCount) {
-					$('#supercraft-progress-text').text('🎉 All ' + totalCount + ' pages successfully updated to H1!');
-					$('#supercraft-progress-percent').text('100%');
-					$('#supercraft-progress-bar-fill').css('width', '100%');
-					checkQueueStatus();
-					return;
-				}
-
-				var pid = targetIds[index];
-				var currentNum = index + 1;
-				var percent = Math.round((currentNum / totalCount) * 100);
-
-				$('#supercraft-progress-text').text('Fixing H1 heading (' + currentNum + '/' + totalCount + ' pages)...');
-				$('#supercraft-progress-percent').text(percent + '%');
-				$('#supercraft-progress-bar-fill').css('width', percent + '%');
-
-				$.ajax({
-					url: supercraftSEO.ajaxUrl,
-					type: 'POST',
-					data: {
-						action: 'supercraft_seo_fix_h1',
-						nonce: supercraftSEO.nonce,
-						scope: 'single',
-						post_id: pid,
-					},
-					complete: function () {
-						processNextH1(index + 1);
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_start_bg_queue',
+					nonce: supercraftSEO.nonce,
+					post_ids: targetIds,
+				},
+				success: function (res) {
+					if (res.success) {
+						startPolling();
+					} else {
+						alert('Failed to start server background queue for H1 fixes.');
 					}
-				});
-			}
-
-			processNextH1(0);
+				}
+			});
 		});
 
 		// Meta AI Modal Event Handlers
@@ -227,7 +207,7 @@
 			});
 		});
 
-		// Fix All Pages Site-Wide Meta AI via Server Background Queue
+		// Fix All Pages Site-Wide Meta AI via Server Async Background Queue
 		$('#btn-meta-fix-all').on('click', function () {
 			$('#supercraft-meta-modal').fadeOut();
 
@@ -252,11 +232,11 @@
 				return;
 			}
 
-			// Launch Server Background Queue with Live Progress Bar
+			// Launch Server Async Background Queue
 			$('#supercraft-start-oneclick').prop('disabled', true).addClass('processing');
 			$('#supercraft-stop-bg').show();
 			$('#supercraft-progress-container').slideDown();
-			$('#supercraft-progress-text').text('Initializing server queue for ' + targetIds.length + ' pages...');
+			$('#supercraft-progress-text').text('Initializing server background queue for ' + targetIds.length + ' pages...');
 
 			$.ajax({
 				url: supercraftSEO.ajaxUrl,
@@ -270,7 +250,7 @@
 					if (res.success) {
 						startPolling();
 					} else {
-						alert('Failed to start background queue for Meta AI.');
+						alert('Failed to start server background queue for Meta AI.');
 					}
 				}
 			});
