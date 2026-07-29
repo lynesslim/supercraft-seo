@@ -33,9 +33,9 @@ class Supercraft_SEO_AIOSEO_Bridge {
 			return false;
 		}
 
-		$title           = isset( $seo_data['meta_title'] ) ? sanitize_text_field( $seo_data['meta_title'] ) : '';
-		$description     = isset( $seo_data['meta_description'] ) ? sanitize_text_field( $seo_data['meta_description'] ) : '';
-		$focus_keyword   = isset( $seo_data['focus_keyword'] ) ? sanitize_text_field( $seo_data['focus_keyword'] ) : '';
+		$title           = isset( $seo_data['meta_title'] ) ? sanitize_text_field( $seo_data['meta_title'] ) : ( isset( $seo_data['title'] ) ? sanitize_text_field( $seo_data['title'] ) : '' );
+		$description     = isset( $seo_data['meta_description'] ) ? sanitize_text_field( $seo_data['meta_description'] ) : ( isset( $seo_data['description'] ) ? sanitize_text_field( $seo_data['description'] ) : '' );
+		$focus_keyword   = isset( $seo_data['focus_keyword'] ) ? sanitize_text_field( $seo_data['focus_keyword'] ) : ( isset( $seo_data['focus_keyphrase'] ) ? sanitize_text_field( $seo_data['focus_keyphrase'] ) : '' );
 		$og_title        = isset( $seo_data['og_title'] ) ? sanitize_text_field( $seo_data['og_title'] ) : $title;
 		$og_description  = isset( $seo_data['og_description'] ) ? sanitize_text_field( $seo_data['og_description'] ) : $description;
 		$secondary_kw    = isset( $seo_data['secondary_keywords'] ) && is_array( $seo_data['secondary_keywords'] ) ? array_map( 'sanitize_text_field', $seo_data['secondary_keywords'] ) : array();
@@ -117,17 +117,49 @@ class Supercraft_SEO_AIOSEO_Bridge {
 
 	/**
 	 * Get current AIOSEO metadata for a given post.
+	 * Returns normalized metadata array with meta_title, meta_description, focus_keyword keys.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return array Existing SEO meta values.
 	 */
 	public function get_existing_seo_metadata( $post_id ) {
+		$title       = get_post_meta( $post_id, '_aioseo_title', true );
+		$description = get_post_meta( $post_id, '_aioseo_description', true );
+		$keyword     = get_post_meta( $post_id, '_aioseo_focus_keyphrase', true );
+
+		if ( empty( $title ) ) {
+			$title = get_post_meta( $post_id, '_supercraft_seo_meta_title', true );
+		}
+		if ( empty( $description ) ) {
+			$description = get_post_meta( $post_id, '_supercraft_seo_meta_description', true );
+		}
+		if ( empty( $keyword ) ) {
+			$keyword = get_post_meta( $post_id, '_supercraft_seo_focus_keyword', true );
+		}
+
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'aioseo_posts';
+		if ( ( empty( $title ) || empty( $description ) ) && $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_name ) ) === $table_name ) {
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT title, description, keyphrases FROM {$table_name} WHERE post_id = %d", $post_id ), ARRAY_A );
+			if ( ! empty( $row ) ) {
+				if ( empty( $title ) && ! empty( $row['title'] ) ) {
+					$title = $row['title'];
+				}
+				if ( empty( $description ) && ! empty( $row['description'] ) ) {
+					$description = $row['description'];
+				}
+			}
+		}
+
 		return array(
-			'title'           => get_post_meta( $post_id, '_aioseo_title', true ),
-			'description'     => get_post_meta( $post_id, '_aioseo_description', true ),
-			'focus_keyphrase' => get_post_meta( $post_id, '_aioseo_focus_keyphrase', true ),
-			'og_title'        => get_post_meta( $post_id, '_aioseo_og_title', true ),
-			'og_description'  => get_post_meta( $post_id, '_aioseo_og_description', true ),
+			'meta_title'       => $title,
+			'title'            => $title,
+			'meta_description' => $description,
+			'description'      => $description,
+			'focus_keyword'    => $keyword,
+			'focus_keyphrase'  => $keyword,
+			'og_title'         => get_post_meta( $post_id, '_aioseo_og_title', true ),
+			'og_description'   => get_post_meta( $post_id, '_aioseo_og_description', true ),
 		);
 	}
 }
