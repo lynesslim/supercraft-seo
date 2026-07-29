@@ -116,11 +116,8 @@ class Supercraft_SEO_Auditor {
 	 * @return string Cleaned brand name.
 	 */
 	public function clean_brand_name( $raw ) {
-		// Strip http/https
 		$clean = preg_replace( '#^https?://#i', '', trim( $raw ) );
-		// Strip domain extension suffix (.com.my, .com, .my, .io, .net, etc.)
 		$clean = preg_replace( '/\.(com\.my|com|my|net|org|io|co|app)\b/i', '', $clean );
-		// Capitalize words / replace dashes/dots with spaces
 		$clean = str_replace( array( '-', '.', '_' ), ' ', $clean );
 		$clean = ucwords( strtolower( trim( $clean ) ) );
 
@@ -152,7 +149,7 @@ class Supercraft_SEO_Auditor {
 				'code'    => 'missing_h1',
 				'title'   => __( 'Missing H1 Heading', 'supercraft-seo' ),
 				'message' => __( 'This page has no H1 tag. A clear H1 heading is vital for search engine indexing and accessibility.', 'supercraft-seo' ),
-				'fixable' => false,
+				'fixable' => true,
 			);
 			$score -= 20;
 		} elseif ( $h1_count > 1 ) {

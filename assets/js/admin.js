@@ -3,6 +3,7 @@
 
 	var pollInterval = null;
 	var isPolling = false;
+	var currentFixH1PostId = 0;
 
 	$(document).ready(function () {
 		// Run Pre-Flight Health Check on Load
@@ -73,6 +74,69 @@
 				$('#launch-btn-text').text('Run One-Click Technical SEO (All Pages)');
 			}
 		}
+
+		// H1 Modal Event Handlers
+		$(document).on('click', '.btn-fix-h1', function () {
+			currentFixH1PostId = $(this).data('postid');
+			$('#supercraft-h1-modal').fadeIn();
+		});
+
+		$('#btn-h1-modal-cancel').on('click', function () {
+			$('#supercraft-h1-modal').fadeOut();
+		});
+
+		// Fix Single Page H1
+		$('#btn-h1-fix-single').on('click', function () {
+			var $btn = $(this);
+			$btn.text('Fixing...').prop('disabled', true);
+
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_fix_h1',
+					nonce: supercraftSEO.nonce,
+					scope: 'single',
+					post_id: currentFixH1PostId,
+				},
+				success: function (res) {
+					$btn.text('Fix This Page Only').prop('disabled', false);
+					$('#supercraft-h1-modal').fadeOut();
+					if (res.success) {
+						alert(res.data.message);
+						checkQueueStatus();
+					} else {
+						alert(res.data.message || 'Failed to fix H1 heading.');
+					}
+				}
+			});
+		});
+
+		// Fix All Pages Site-Wide H1
+		$('#btn-h1-fix-all').on('click', function () {
+			var $btn = $(this);
+			$btn.text('Fixing All...').prop('disabled', true);
+
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_fix_h1',
+					nonce: supercraftSEO.nonce,
+					scope: 'all',
+				},
+				success: function (res) {
+					$btn.text('Fix All Pages Site-Wide').prop('disabled', false);
+					$('#supercraft-h1-modal').fadeOut();
+					if (res.success) {
+						alert(res.data.message);
+						checkQueueStatus();
+					} else {
+						alert(res.data.message || 'Failed to fix H1 headings.');
+					}
+				}
+			});
+		});
 
 		// Run Pre-Flight Diagnostic Function
 		function runPreflightScan() {
@@ -392,6 +456,10 @@
 				
 				html += '<li class="' + itemClass + '">';
 				html += '<span>' + icon + ' <strong>' + escapeHtml(issue.title) + ':</strong> ' + escapeHtml(issue.message) + '</span>';
+
+				if (issue.code === 'missing_h1') {
+					html += '<button class="btn-fix-h1" data-postid="' + data.post_id + '">Fix H1 Tag</button>';
+				}
 
 				if (issue.code === 'missing_image_alts' && data.seo_data && data.seo_data.suggested_image_alts) {
 					html += '<button class="btn-fix-alt" data-postid="' + data.post_id + '" data-alts=\'' + JSON.stringify(data.seo_data.suggested_image_alts) + '\'>Fix ALTs via AI</button>';

@@ -48,6 +48,8 @@ class Supercraft_SEO_Admin_Dashboard {
 		add_action( 'wp_ajax_supercraft_seo_stop_bg_queue', array( $this, 'ajax_stop_bg_queue' ) );
 		add_action( 'wp_ajax_supercraft_seo_get_queue_status', array( $this, 'ajax_get_queue_status' ) );
 		
+		// H1 & ALT Auto-Fix AJAX Actions
+		add_action( 'wp_ajax_supercraft_seo_fix_h1', array( $this, 'ajax_fix_h1' ) );
 		add_action( 'wp_ajax_supercraft_seo_fix_image_alts', array( $this, 'ajax_fix_image_alts' ) );
 	}
 
@@ -286,7 +288,7 @@ class Supercraft_SEO_Admin_Dashboard {
 							</div>
 						</div>
 
-						<!-- Page Picker Checklist Container (Shown when "selected" mode is active) -->
+						<!-- Page Picker Checklist Container -->
 						<div id="page-picker-container" class="page-picker-wrapper" style="display: none;">
 							<div class="page-picker-toolbar">
 								<input type="text" id="page-search-input" placeholder="🔍 Filter pages by title..." class="page-search-field" />
@@ -365,6 +367,20 @@ class Supercraft_SEO_Admin_Dashboard {
 
 			</div>
 		</div>
+
+		<!-- H1 Fix Scope Modal Dialog -->
+		<div id="supercraft-h1-modal" class="supercraft-modal-overlay" style="display:none;">
+			<div class="supercraft-modal-card">
+				<h3 style="margin-top:0;color:#0f172a;font-size:18px;">🏷️ Fix Missing H1 Heading</h3>
+				<p style="color:#475569;font-size:14px;line-height:1.5;">Would you like to promote the hero heading to <strong>H1</strong> for this page only, or auto-fix <strong>all pages site-wide</strong> missing H1 tags?</p>
+				
+				<div class="supercraft-modal-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+					<button type="button" id="btn-h1-fix-single" class="button button-primary">Fix This Page Only</button>
+					<button type="button" id="btn-h1-fix-all" class="button button-secondary">Fix All Pages Site-Wide</button>
+					<button type="button" id="btn-h1-modal-cancel" class="button">Cancel</button>
+				</div>
+			</div>
+		</div>
 		<?php
 	}
 
@@ -372,13 +388,12 @@ class Supercraft_SEO_Admin_Dashboard {
 	 * AJAX: Background Worker Ticker Webhook
 	 */
 	public function ajax_bg_tick() {
-		// Non-blocking ticker step
 		$this->main->background_worker->process_next_item();
 		wp_send_json_success( array( 'tick' => true ) );
 	}
 
 	/**
-	 * AJAX: Start Background Queue (supports custom post_ids selection)
+	 * AJAX: Start Background Queue
 	 */
 	public function ajax_start_bg_queue() {
 		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
@@ -436,6 +451,61 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
+	 * AJAX: 1-Click Fix H1 Headings (Single page vs All site-wide)
+	 */
+	public function ajax_fix_h1() {
+		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
+
+		if ( ! Supercraft_SEO_Validation::is_validated() ) {
+			wp_send_json_error( array( 'message' => __( 'License validation required.', 'supercraft-seo' ) ) );
+		}
+
+		$scope   = isset( $_POST['scope'] ) ? sanitize_text_field( $_POST['scope'] ) : 'single';
+		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+
+		$fixed_count = 0;
+
+		if ( 'all' === $scope ) {
+			$all_ids = get_posts( array(
+				'post_type'      => array( 'page', 'post' ),
+				'post_status'    => array( 'publish', 'draft' ),
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+			) );
+
+			foreach ( $all_ids as $id ) {
+				$page_data = $this->main->elementor_parser->get_page_content( $id );
+				$h1_count  = count( isset( $page_data['headings']['h1'] ) ? $page_data['headings']['h1'] : array() );
+
+				if ( 0 === $h1_count ) {
+					if ( $this->main->elementor_parser->promote_first_heading_to_h1( $id ) ) {
+						$fixed_count++;
+					}
+				}
+			}
+
+			wp_send_json_success( array(
+				'message'     => sprintf( __( 'Successfully promoted primary hero heading to H1 on %d pages site-wide!', 'supercraft-seo' ), $fixed_count ),
+				'fixed_count' => $fixed_count,
+			) );
+		} else {
+			if ( ! $post_id ) {
+				wp_send_json_error( array( 'message' => __( 'Invalid post ID.', 'supercraft-seo' ) ) );
+			}
+
+			$res = $this->main->elementor_parser->promote_first_heading_to_h1( $post_id );
+			if ( $res ) {
+				wp_send_json_success( array(
+					'message' => __( 'Primary hero heading successfully promoted to H1!', 'supercraft-seo' ),
+					'post_id' => $post_id,
+				) );
+			} else {
+				wp_send_json_error( array( 'message' => __( 'Could not find heading widget to promote.', 'supercraft-seo' ) ) );
+			}
+		}
+	}
+
+	/**
 	 * AJAX: Run Pre-Flight Site Health Check
 	 */
 	public function ajax_run_preflight() {
@@ -446,7 +516,7 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
-	 * AJAX: Update Site Title (1-Click Brand Name Fix)
+	 * AJAX: Update Site Title
 	 */
 	public function ajax_update_site_title() {
 		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
@@ -469,7 +539,7 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
-	 * AJAX: Unblock Search Engine Indexing (blog_public = 1)
+	 * AJAX: Unblock Search Engine Indexing
 	 */
 	public function ajax_update_blog_public() {
 		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );

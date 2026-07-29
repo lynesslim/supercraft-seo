@@ -8,7 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * 
  * Parses Elementor page builder JSON payloads stored in `_elementor_data` post meta.
  * Extracts clean, structured copy, headings, body text, and image metadata for SEO processing.
- * Supports multibyte / CJK (Chinese, Japanese, Korean) word counting.
+ * Supports multibyte / CJK (Chinese, Japanese, Korean) word counting and H1 heading promotion.
  */
 class Supercraft_SEO_Elementor_Parser {
 
@@ -75,7 +75,80 @@ class Supercraft_SEO_Elementor_Parser {
 	}
 
 	/**
-	 * Multibyte & CJK (Chinese, Japanese, Korean) Aware Word Count Helper.
+	 * Promote the first heading widget on an Elementor page (or raw post_content) to an H1 tag.
+	 *
+	 * @param int $post_id Post ID to modify.
+	 * @return bool True if heading was promoted to H1, false otherwise.
+	 */
+	public function promote_first_heading_to_h1( $post_id ) {
+		$is_elementor = get_post_meta( $post_id, '_elementor_edit_mode', true );
+		$elementor_data = get_post_meta( $post_id, '_elementor_data', true );
+
+		if ( 'builder' === $is_elementor && ! empty( $elementor_data ) ) {
+			$elements = is_string( $elementor_data ) ? json_decode( $elementor_data, true ) : $elementor_data;
+
+			if ( is_array( $elements ) ) {
+				$promoted = false;
+				$this->promote_heading_in_elements( $elements, $promoted );
+
+				if ( $promoted ) {
+					// Save updated Elementor JSON structure
+					update_post_meta( $post_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
+					
+					// Clear Elementor CSS cache if class exists
+					if ( class_exists( '\Elementor\Plugin' ) ) {
+						\Elementor\Plugin::$instance->files_manager->clear_stack();
+					}
+					return true;
+				}
+			}
+		}
+
+		// Fallback for standard WordPress posts/pages: replace top <h2> or <h3> in post_content with <h1>
+		$raw_content = get_post_field( 'post_content', $post_id );
+		if ( ! empty( $raw_content ) ) {
+			if ( preg_match( '/<h[2-4]\b([^>]*)>(.*?)<\/h[2-4]>/is', $raw_content ) ) {
+				$new_content = preg_replace( '/<h[2-4]\b([^>]*)>(.*?)<\/h[2-4]>/is', '<h1$1>$2</h1>', $raw_content, 1 );
+				wp_update_post( array(
+					'ID'           => $post_id,
+					'post_content' => $new_content,
+				) );
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Recursively search and promote the first heading widget to H1 in Elementor elements array.
+	 *
+	 * @param array &$elements Elementor elements array.
+	 * @param bool  &$promoted Reference flag indicating if promotion succeeded.
+	 */
+	private function promote_heading_in_elements( &$elements, &$promoted ) {
+		foreach ( $elements as &$element ) {
+			if ( $promoted ) {
+				return;
+			}
+
+			if ( isset( $element['widgetType'] ) && 'heading' === $element['widgetType'] ) {
+				if ( ! isset( $element['settings'] ) ) {
+					$element['settings'] = array();
+				}
+				$element['settings']['header_size'] = 'h1';
+				$promoted = true;
+				return;
+			}
+
+			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
+				$this->promote_heading_in_elements( $element['elements'], $promoted );
+			}
+		}
+	}
+
+	/**
+	 * Multibyte & CJK Aware Word Count Helper.
 	 *
 	 * @param string $text Text to count.
 	 * @return int Total word / character count.
@@ -86,10 +159,7 @@ class Supercraft_SEO_Elementor_Parser {
 			return 0;
 		}
 
-		// 1. Count CJK characters (each Chinese/Japanese/Korean character = 1 word unit)
-		$cjk_count = preg_match_all( '/[\x{4e00}-\x{9fa5}\x{3040}-\x{30ff}\x{3130}-\x{318f}]/u', $clean );
-
-		// 2. Remove CJK characters to accurately count Latin / ASCII words separately
+		$cjk_count   = preg_match_all( '/[\x{4e00}-\x{9fa5}\x{3040}-\x{30ff}\x{3130}-\x{318f}]/u', $clean );
 		$latin_text  = preg_replace( '/[\x{4e00}-\x{9fa5}\x{3040}-\x{30ff}\x{3130}-\x{318f}]/u', ' ', $clean );
 		$latin_count = str_word_count( $latin_text );
 
@@ -108,13 +178,11 @@ class Supercraft_SEO_Elementor_Parser {
 				continue;
 			}
 
-			// If element has settings, extract widget contents
 			if ( ! empty( $element['settings'] ) ) {
 				$widget_type = isset( $element['widgetType'] ) ? $element['widgetType'] : '';
 				$this->extract_widget_content( $widget_type, $element['settings'], $parsed );
 			}
 
-			// Traverse child elements (columns / sections / containers)
 			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
 				$this->parse_elements_recursive( $element['elements'], $parsed );
 			}
@@ -124,7 +192,7 @@ class Supercraft_SEO_Elementor_Parser {
 	/**
 	 * Extract text content and metadata from specific Elementor widgets.
 	 *
-	 * @param string $widget_type Elementor widget slug (e.g. 'heading', 'text-editor', 'image').
+	 * @param string $widget_type Elementor widget slug.
 	 * @param array  $settings Widget settings array.
 	 * @param array  &$parsed Target parsed result reference.
 	 */
@@ -247,7 +315,6 @@ class Supercraft_SEO_Elementor_Parser {
 				break;
 
 			default:
-				// Generic fallback: check common title/text keys in custom or third-party widgets
 				if ( ! empty( $settings['title'] ) && is_string( $settings['title'] ) ) {
 					$parsed['headings']['h3'][] = array(
 						'text' => wp_strip_all_tags( $settings['title'] ),
@@ -262,7 +329,7 @@ class Supercraft_SEO_Elementor_Parser {
 	}
 
 	/**
-	 * Fallback HTML parser for non-Elementor posts or standard block editor content.
+	 * Fallback HTML parser for non-Elementor posts.
 	 *
 	 * @param string $html Raw HTML content.
 	 * @param array  &$parsed Target parsed result reference.
