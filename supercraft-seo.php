@@ -23,6 +23,18 @@ define( 'SUPERCRAFT_SEO_URL', plugin_dir_url( __FILE__ ) );
 define( 'SUPERCRAFT_SEO_BASENAME', plugin_basename( __FILE__ ) );
 
 /**
+ * GitHub Auto-Update Checker
+ */
+if ( file_exists( SUPERCRAFT_SEO_PATH . 'plugin-update-checker/plugin-update-checker.php' ) ) {
+	require_once SUPERCRAFT_SEO_PATH . 'plugin-update-checker/plugin-update-checker.php';
+	$supercraft_seo_update_checker = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+		'https://github.com/lynesslim/supercraft-seo/',
+		__FILE__,
+		'supercraft-seo'
+	);
+}
+
+/**
  * Autoload Required Classes
  */
 require_once SUPERCRAFT_SEO_PATH . 'includes/class-validation.php';
