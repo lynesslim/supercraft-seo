@@ -8,7 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * 
  * Manages server-side asynchronous background processing for batch Technical SEO
  * audit and AI meta generation with pause/stop capability.
- * Runs 100% asynchronously on the server — users can freely navigate off or close browser.
+ * Preserves existing audit results and updates items in-place.
  */
 class Supercraft_SEO_Background_Worker {
 
@@ -32,6 +32,7 @@ class Supercraft_SEO_Background_Worker {
 
 	/**
 	 * Start a new background batch process for a list of post IDs.
+	 * Preserves existing audited result cards and updates items in-place.
 	 *
 	 * @param array $post_ids List of post IDs to process.
 	 * @return array Queue initial status state.
@@ -41,13 +42,16 @@ class Supercraft_SEO_Background_Worker {
 			return false;
 		}
 
+		$existing_state   = get_option( self::QUEUE_OPTION_KEY, array() );
+		$existing_results = ! empty( $existing_state['results'] ) && is_array( $existing_state['results'] ) ? $existing_state['results'] : array();
+
 		$state = array(
 			'status'          => 'running',
 			'total'           => count( $post_ids ),
 			'processed_count' => 0,
 			'pending_ids'     => array_values( array_map( 'absint', $post_ids ) ),
 			'completed_ids'   => array(),
-			'results'         => array(),
+			'results'         => $existing_results,
 			'started_at'      => current_time( 'mysql' ),
 			'last_updated'    => current_time( 'mysql' ),
 		);
@@ -111,6 +115,7 @@ class Supercraft_SEO_Background_Worker {
 	/**
 	 * Process the next item in the background queue.
 	 * Automatically promotes H1 headings if missing and generates AI metadata.
+	 * Updates existing audit card entries in-place.
 	 *
 	 * @return bool True if item was processed, false if queue is empty or stopped.
 	 */
@@ -171,10 +176,25 @@ class Supercraft_SEO_Background_Worker {
 			'audit'         => $audit_result,
 		);
 
+		// Update or Append in-place
+		$updated_existing = false;
+		if ( ! empty( $state['results'] ) && is_array( $state['results'] ) ) {
+			foreach ( $state['results'] as $idx => $existing_item ) {
+				if ( isset( $existing_item['post_id'] ) && (int) $existing_item['post_id'] === (int) $post_id ) {
+					$state['results'][ $idx ] = $result_item;
+					$updated_existing = true;
+					break;
+				}
+			}
+		}
+
+		if ( ! $updated_existing ) {
+			$state['results'][] = $result_item;
+		}
+
 		// Update state
 		$state['processed_count']++;
 		$state['completed_ids'][] = $post_id;
-		$state['results'][]       = $result_item;
 		$state['last_updated']    = current_time( 'mysql' );
 
 		if ( empty( $state['pending_ids'] ) ) {

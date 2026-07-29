@@ -5,6 +5,7 @@
 	var isPolling = false;
 	var currentFixH1PostId = 0;
 	var currentFixMetaPostId = 0;
+	var isTicking = false;
 
 	$(document).ready(function () {
 		// Run Pre-Flight Health Check on Load
@@ -121,7 +122,6 @@
 		$('#btn-h1-fix-all').on('click', function () {
 			$('#supercraft-h1-modal').fadeOut();
 			
-			// Find all post IDs missing H1
 			var targetIds = [];
 			$('.audit-item-card').each(function () {
 				if ($(this).find('.btn-fix-h1').length > 0) {
@@ -142,7 +142,6 @@
 				return;
 			}
 
-			// Launch Server Async Background Queue
 			$('#supercraft-start-oneclick').prop('disabled', true).addClass('processing');
 			$('#supercraft-stop-bg').show();
 			$('#supercraft-progress-container').slideDown();
@@ -211,7 +210,6 @@
 		$('#btn-meta-fix-all').on('click', function () {
 			$('#supercraft-meta-modal').fadeOut();
 
-			// Collect all post IDs with meta warnings
 			var targetIds = [];
 			$('.audit-item-card').each(function () {
 				if ($(this).find('.btn-fix-meta-title, .btn-fix-meta-desc').length > 0) {
@@ -232,7 +230,6 @@
 				return;
 			}
 
-			// Launch Server Async Background Queue
 			$('#supercraft-start-oneclick').prop('disabled', true).addClass('processing');
 			$('#supercraft-stop-bg').show();
 			$('#supercraft-progress-container').slideDown();
@@ -388,7 +385,6 @@
 			$('#supercraft-stop-bg').show();
 			$('#supercraft-progress-container').slideDown();
 			$('#supercraft-results-card').slideDown();
-			$('#supercraft-audit-results').html('');
 
 			var requestData = {
 				action: 'supercraft_seo_start_bg_queue',
@@ -441,7 +437,7 @@
 			});
 		});
 
-		// Polling Functions
+		// Polling & Dual-Engine Ticker Functions
 		function startPolling() {
 			if (isPolling) return;
 			isPolling = true;
@@ -485,6 +481,19 @@
 
 							if (state.results && state.results.length > 0) {
 								renderAllResults(state.results);
+							}
+
+							// Trigger front-end backup ticker to ensure queue NEVER stalls
+							if (!isTicking) {
+								isTicking = true;
+								$.ajax({
+									url: supercraftSEO.ajaxUrl,
+									type: 'POST',
+									data: { action: 'supercraft_seo_bg_tick' },
+									complete: function () {
+										isTicking = false;
+									}
+								});
 							}
 
 							if (!isPolling) {
