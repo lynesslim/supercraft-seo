@@ -104,7 +104,6 @@
 					$btn.text('Fix This Page Only').prop('disabled', false);
 					$('#supercraft-h1-modal').fadeOut();
 					if (res.success) {
-						alert(res.data.message);
 						checkQueueStatus();
 					} else {
 						alert(res.data.message || 'Failed to fix H1 heading.');
@@ -130,7 +129,6 @@
 					$btn.text('Fix All Pages Site-Wide').prop('disabled', false);
 					$('#supercraft-h1-modal').fadeOut();
 					if (res.success) {
-						alert(res.data.message);
 						checkQueueStatus();
 					} else {
 						alert(res.data.message || 'Failed to fix H1 headings.');
@@ -167,7 +165,6 @@
 					$btn.text('Fix This Page Only').prop('disabled', false);
 					$('#supercraft-meta-modal').fadeOut();
 					if (res.success) {
-						alert(res.data.message);
 						checkQueueStatus();
 					} else {
 						alert(res.data.message || 'Failed to fix Meta AI.');
@@ -193,7 +190,6 @@
 					$btn.text('Fix All Pages Site-Wide').prop('disabled', false);
 					$('#supercraft-meta-modal').fadeOut();
 					if (res.success) {
-						alert(res.data.message);
 						checkQueueStatus();
 					} else {
 						alert(res.data.message || 'Failed to fix Meta AI.');
@@ -486,7 +482,7 @@
 				category = 'warning';
 			}
 
-			var html = '<div class="audit-item-card" data-category="' + category + '">';
+			var html = '<div class="audit-item-card" data-postid="' + data.post_id + '" data-category="' + category + '">';
 			
 			html += '<div class="audit-item-header">';
 			html += '<div class="audit-item-title-area">';
@@ -585,9 +581,10 @@
 			});
 		});
 
-		// Fix Image ALTs via AJAX
+		// Fix Image ALTs via AJAX with live card refresh
 		$(document).on('click', '.btn-fix-alt', function () {
 			var $btn = $(this);
+			var postId = $btn.data('postid');
 			var alts = $btn.data('alts');
 			$btn.text('Updating ALTs...').prop('disabled', true);
 
@@ -597,11 +594,12 @@
 				data: {
 					action: 'supercraft_seo_fix_image_alts',
 					nonce: supercraftSEO.nonce,
+					post_id: postId,
 					alts: alts,
 				},
 				success: function (res) {
 					if (res.success) {
-						$btn.text('✅ ALTs Applied!').css({ background: '#10b981' });
+						checkQueueStatus();
 					} else {
 						$btn.text('Failed').css({ background: '#ef4444' });
 					}

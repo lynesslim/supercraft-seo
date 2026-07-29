@@ -85,6 +85,7 @@ class Supercraft_SEO_Admin_Dashboard {
 				__( 'Supercraft', 'supercraft-seo' ),
 				'manage_options',
 				'supercraft-seo',
+				'supercraft-seo',
 				array( $this, 'render_dashboard_page' ),
 				'dashicons-chart-bar',
 				30
@@ -110,7 +111,6 @@ class Supercraft_SEO_Admin_Dashboard {
 			return;
 		}
 
-		// Load Tailwind CSS CDN for modern utility class support
 		wp_enqueue_script(
 			'tailwindcss-cdn',
 			'https://cdn.tailwindcss.com',
@@ -157,7 +157,6 @@ class Supercraft_SEO_Admin_Dashboard {
 		$model          = get_option( 'supercraft_seo_openai_model', 'gpt-4o-mini' );
 		$brand_voice    = get_option( 'supercraft_seo_brand_voice', 'Professional, authoritative, yet engaging' );
 
-		// Fetch available pages & posts for manual page selection list
 		$available_posts = get_posts( array(
 			'post_type'      => array( 'page', 'post' ),
 			'post_status'    => array( 'publish', 'draft' ),
@@ -400,6 +399,44 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
+	 * Helper: Re-audit a single post and update stored background worker state in wp_options.
+	 *
+	 * @param int $post_id Post ID to re-audit.
+	 * @return array Re-audited result object.
+	 */
+	private function reaudit_and_update_state( $post_id ) {
+		$page_data = $this->main->elementor_parser->get_page_content( $post_id );
+		$existing_seo = $this->main->aioseo_bridge->get_existing_seo_metadata( $post_id );
+		$audit_result = $this->main->seo_auditor->run_audit( $post_id, $page_data, $existing_seo );
+
+		$updated_item = array(
+			'post_id'       => $post_id,
+			'title'         => get_the_title( $post_id ),
+			'permalink'     => get_permalink( $post_id ),
+			'is_elementor'  => $page_data['is_elementor'],
+			'word_count'    => $page_data['word_count'],
+			'seo_generated' => ! empty( $existing_seo['meta_title'] ),
+			'seo_data'      => $existing_seo,
+			'openai_error'  => null,
+			'audit'         => $audit_result,
+		);
+
+		// Update stored queue state option
+		$state = get_option( Supercraft_SEO_Background_Worker::QUEUE_OPTION_KEY, array() );
+		if ( ! empty( $state['results'] ) && is_array( $state['results'] ) ) {
+			foreach ( $state['results'] as $idx => $res_item ) {
+				if ( isset( $res_item['post_id'] ) && (int) $res_item['post_id'] === (int) $post_id ) {
+					$state['results'][ $idx ] = $updated_item;
+					break;
+				}
+			}
+			update_option( Supercraft_SEO_Background_Worker::QUEUE_OPTION_KEY, $state, false );
+		}
+
+		return $updated_item;
+	}
+
+	/**
 	 * AJAX: Background Worker Ticker Webhook
 	 */
 	public function ajax_bg_tick() {
@@ -466,7 +503,7 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
-	 * AJAX: 1-Click Fix H1 Headings
+	 * AJAX: 1-Click Fix H1 Headings with Live Re-Audit
 	 */
 	public function ajax_fix_h1() {
 		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
@@ -479,6 +516,7 @@ class Supercraft_SEO_Admin_Dashboard {
 		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
 
 		$fixed_count = 0;
+		$updated_item = null;
 
 		if ( 'all' === $scope ) {
 			$all_ids = get_posts( array(
@@ -494,6 +532,7 @@ class Supercraft_SEO_Admin_Dashboard {
 
 				if ( 0 === $h1_count ) {
 					if ( $this->main->elementor_parser->promote_first_heading_to_h1( $id ) ) {
+						$this->reaudit_and_update_state( $id );
 						$fixed_count++;
 					}
 				}
@@ -510,9 +549,11 @@ class Supercraft_SEO_Admin_Dashboard {
 
 			$res = $this->main->elementor_parser->promote_first_heading_to_h1( $post_id );
 			if ( $res ) {
+				$updated_item = $this->reaudit_and_update_state( $post_id );
 				wp_send_json_success( array(
-					'message' => __( 'Primary hero heading successfully promoted to H1!', 'supercraft-seo' ),
-					'post_id' => $post_id,
+					'message'      => __( 'Primary hero heading successfully promoted to H1!', 'supercraft-seo' ),
+					'post_id'      => $post_id,
+					'updated_item' => $updated_item,
 				) );
 			} else {
 				wp_send_json_error( array( 'message' => __( 'Could not find heading widget to promote.', 'supercraft-seo' ) ) );
@@ -521,7 +562,7 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
-	 * AJAX: 1-Click Fix Meta Title / Description via AI
+	 * AJAX: 1-Click Fix Meta Title / Description via AI with Live Re-Audit
 	 */
 	public function ajax_fix_meta() {
 		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
@@ -534,6 +575,7 @@ class Supercraft_SEO_Admin_Dashboard {
 		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
 
 		$fixed_count = 0;
+		$updated_item = null;
 
 		if ( 'all' === $scope ) {
 			$all_ids = get_posts( array(
@@ -549,6 +591,7 @@ class Supercraft_SEO_Admin_Dashboard {
 
 				if ( ! is_wp_error( $ai_res ) && ! empty( $ai_res['meta_title'] ) ) {
 					$this->main->aioseo_bridge->save_seo_metadata( $id, $ai_res );
+					$this->reaudit_and_update_state( $id );
 					$fixed_count++;
 				}
 			}
@@ -570,11 +613,12 @@ class Supercraft_SEO_Admin_Dashboard {
 			}
 
 			$this->main->aioseo_bridge->save_seo_metadata( $post_id, $ai_res );
+			$updated_item = $this->reaudit_and_update_state( $post_id );
 
 			wp_send_json_success( array(
-				'message'  => __( 'AI meta title & description re-generated and synced with AIOSEO!', 'supercraft-seo' ),
-				'post_id'  => $post_id,
-				'seo_data' => $ai_res,
+				'message'      => __( 'AI meta title & description re-generated and synced with AIOSEO!', 'supercraft-seo' ),
+				'post_id'      => $post_id,
+				'updated_item' => $updated_item,
 			) );
 		}
 	}
@@ -695,7 +739,7 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
-	 * AJAX: Fix Image Alt Texts
+	 * AJAX: Fix Image Alt Texts with Live Re-Audit
 	 */
 	public function ajax_fix_image_alts() {
 		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
@@ -704,7 +748,9 @@ class Supercraft_SEO_Admin_Dashboard {
 			wp_send_json_error( array( 'message' => __( 'License validation required.', 'supercraft-seo' ) ) );
 		}
 
-		$alts = isset( $_POST['alts'] ) ? $_POST['alts'] : array();
+		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+		$alts    = isset( $_POST['alts'] ) ? $_POST['alts'] : array();
+
 		if ( empty( $alts ) || ! is_array( $alts ) ) {
 			wp_send_json_error( array( 'message' => __( 'No image alt data provided.', 'supercraft-seo' ) ) );
 		}
@@ -720,8 +766,14 @@ class Supercraft_SEO_Admin_Dashboard {
 			}
 		}
 
+		$updated_item = null;
+		if ( $post_id > 0 ) {
+			$updated_item = $this->reaudit_and_update_state( $post_id );
+		}
+
 		wp_send_json_success( array(
-			'message' => sprintf( __( 'Successfully updated %d image ALT tags in media library!', 'supercraft-seo' ), $updated_count ),
+			'message'      => sprintf( __( 'Successfully updated %d image ALT tags in media library!', 'supercraft-seo' ), $updated_count ),
+			'updated_item' => $updated_item,
 		) );
 	}
 }
