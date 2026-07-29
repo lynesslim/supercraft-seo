@@ -6,76 +6,95 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Supercraft_SEO_Elementor_Parser
  * 
- * Parses Elementor page builder JSON payloads stored in `_elementor_data` post meta.
- * Extracts clean, structured copy, headings, body text, and image metadata for SEO processing.
- * Supports multibyte / CJK (Chinese, Japanese, Korean) word counting and H1 heading promotion.
+ * Extracts headings, paragraph text, word counts, and missing image ALTs from Elementor JSON
+ * and standard WordPress post_content. Provides 1-click H1 promotion engine.
  */
 class Supercraft_SEO_Elementor_Parser {
 
 	/**
-	 * Parse post content and extract clean structured text for a given post ID.
+	 * Main controller reference
+	 * 
+	 * @var Supercraft_SEO
+	 */
+	private $main;
+
+	/**
+	 * Constructor
 	 *
-	 * @param int $post_id Post ID to inspect.
-	 * @return array Structured content containing headings, paragraphs, images, raw text, and word count.
+	 * @param Supercraft_SEO $main Main plugin instance.
+	 */
+	public function __construct( $main ) {
+		$this->main = $main;
+	}
+
+	/**
+	 * Parse page content for a given post ID (supports both Elementor and Gutenberg/Classic).
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array Structured parsed page data payload.
 	 */
 	public function get_page_content( $post_id ) {
+		$post_id = absint( $post_id );
+		if ( ! $post_id ) {
+			return $this->get_empty_page_data();
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post ) {
+			return $this->get_empty_page_data();
+		}
+
 		$is_elementor = get_post_meta( $post_id, '_elementor_edit_mode', true );
-		$elementor_data = get_post_meta( $post_id, '_elementor_data', true );
+		$is_builder   = ( 'builder' === $is_elementor );
 
 		$parsed = array(
-			'is_elementor' => ! empty( $is_elementor ) && 'builder' === $is_elementor,
+			'post_id'      => $post_id,
 			'title'        => get_the_title( $post_id ),
-			'post_type'    => get_post_type( $post_id ),
+			'permalink'    => get_permalink( $post_id ),
+			'is_elementor' => $is_builder,
 			'headings'     => array(
 				'h1' => array(),
 				'h2' => array(),
 				'h3' => array(),
 				'h4' => array(),
+				'h5' => array(),
+				'h6' => array(),
 			),
 			'paragraphs'   => array(),
-			'images'       => array(),
-			'raw_text'     => '',
 			'word_count'   => 0,
+			'images'       => array(
+				'all'          => array(),
+				'missing_alts' => array(),
+			),
 		);
 
-		if ( $parsed['is_elementor'] && ! empty( $elementor_data ) ) {
-			$elements = is_string( $elementor_data ) ? json_decode( $elementor_data, true ) : $elementor_data;
-
-			if ( is_array( $elements ) ) {
-				$this->parse_elements_recursive( $elements, $parsed );
+		if ( $is_builder ) {
+			$elementor_data = get_post_meta( $post_id, '_elementor_data', true );
+			if ( ! empty( $elementor_data ) ) {
+				$elements = is_string( $elementor_data ) ? json_decode( $elementor_data, true ) : $elementor_data;
+				if ( is_array( $elements ) ) {
+					$this->parse_elements_recursive( $elements, $parsed );
+				}
 			}
 		}
 
-		// Fallback to post_content if not built with Elementor or if Elementor data is empty
-		if ( empty( $parsed['paragraphs'] ) && empty( $parsed['headings']['h1'] ) && empty( $parsed['headings']['h2'] ) ) {
-			$raw_content = get_post_field( 'post_content', $post_id );
-			if ( ! empty( $raw_content ) ) {
-				$this->parse_raw_html_fallback( $raw_content, $parsed );
-			}
-		}
+		// Always fallback / combine with post_content HTML parsing
+		$this->parse_raw_html_content( $post->post_content, $parsed );
 
-		// Aggregate raw text representation
-		$text_parts = array();
-		$text_parts[] = $parsed['title'];
-
-		foreach ( $parsed['headings'] as $tag => $items ) {
-			foreach ( $items as $heading ) {
-				$text_parts[] = $heading['text'];
-			}
-		}
-
-		foreach ( $parsed['paragraphs'] as $paragraph ) {
-			$text_parts[] = $paragraph;
-		}
-
-		$parsed['raw_text']   = implode( "\n\n", array_filter( array_map( 'trim', $text_parts ) ) );
-		$parsed['word_count'] = $this->count_words( $parsed['raw_text'] );
+		// Calculate total word count
+		$all_text = implode( ' ', array_merge(
+			array( $parsed['title'] ),
+			$this->flatten_headings( $parsed['headings'] ),
+			$parsed['paragraphs']
+		) );
+		$parsed['word_count'] = $this->count_words( $all_text );
 
 		return $parsed;
 	}
 
 	/**
-	 * Promote the first heading widget on an Elementor page (or raw post_content) to an H1 tag.
+	 * Promote the first non-H1 hero heading in Elementor JSON or post_content to H1.
+	 * Safely wrapped in Throwable catch to prevent fatal crashes.
 	 *
 	 * @param int $post_id Post ID to modify.
 	 * @return bool True if heading was promoted to H1, false otherwise.
@@ -86,53 +105,58 @@ class Supercraft_SEO_Elementor_Parser {
 			return false;
 		}
 
-		$is_elementor   = get_post_meta( $post_id, '_elementor_edit_mode', true );
-		$elementor_data = get_post_meta( $post_id, '_elementor_data', true );
+		try {
+			$is_elementor   = get_post_meta( $post_id, '_elementor_edit_mode', true );
+			$elementor_data = get_post_meta( $post_id, '_elementor_data', true );
 
-		if ( 'builder' === $is_elementor && ! empty( $elementor_data ) ) {
-			$elements = is_string( $elementor_data ) ? json_decode( $elementor_data, true ) : $elementor_data;
+			if ( 'builder' === $is_elementor && ! empty( $elementor_data ) ) {
+				$elements = is_string( $elementor_data ) ? json_decode( $elementor_data, true ) : $elementor_data;
 
-			if ( is_array( $elements ) && ! empty( $elements ) ) {
-				$promoted = false;
-				$this->promote_heading_in_elements( $elements, $promoted );
+				if ( is_array( $elements ) && ! empty( $elements ) ) {
+					$promoted = false;
+					$this->promote_heading_in_elements( $elements, $promoted );
 
-				if ( $promoted ) {
-					// Save updated Elementor JSON structure
-					update_post_meta( $post_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
-					
-					// Safely clear Elementor CSS cache
-					try {
-						if ( class_exists( '\Elementor\Plugin' ) && isset( \Elementor\Plugin::$instance->files_manager ) ) {
-							\Elementor\Plugin::$instance->files_manager->clear_stack();
+					if ( $promoted ) {
+						// Save updated Elementor JSON structure
+						update_post_meta( $post_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
+						
+						// Safely clear Elementor CSS cache
+						try {
+							if ( class_exists( '\Elementor\Plugin' ) && isset( \Elementor\Plugin::$instance->files_manager ) ) {
+								\Elementor\Plugin::$instance->files_manager->clear_stack();
+							}
+						} catch ( \Throwable $t ) {
+							// Ignore cache clear error
 						}
-					} catch ( Exception $e ) {
-						// Ignore cache clear error
+						return true;
 					}
-					return true;
 				}
 			}
-		}
 
-		// Fallback for standard WordPress posts/pages or Elementor pages with non-heading top widgets
-		$raw_content = get_post_field( 'post_content', $post_id );
-		if ( ! empty( $raw_content ) && preg_match( '/<h[2-4]\b([^>]*)>(.*?)<\/h[2-4]>/is', $raw_content ) ) {
-			$new_content = preg_replace( '/<h[2-4]\b([^>]*)>(.*?)<\/h[2-4]>/is', '<h1$1>$2</h1>', $raw_content, 1 );
-			wp_update_post( array(
-				'ID'           => $post_id,
-				'post_content' => $new_content,
-			) );
-			return true;
-		}
+			// Fallback for standard WordPress posts/pages or Elementor pages with non-heading top widgets
+			$raw_content = get_post_field( 'post_content', $post_id );
+			if ( ! empty( $raw_content ) && preg_match( '/<h[2-4]\b([^>]*)>(.*?)<\/h[2-4]>/is', $raw_content ) ) {
+				$new_content = preg_replace( '/<h[2-4]\b([^>]*)>(.*?)<\/h[2-4]>/is', '<h1$1>$2</h1>', $raw_content, 1 );
+				wp_update_post( array(
+					'ID'           => $post_id,
+					'post_content' => $new_content,
+				) );
+				return true;
+			}
 
-		// If no heading tag exists at all, prepend post title as an H1 tag to post_content
-		$title = get_the_title( $post_id );
-		if ( ! empty( $title ) ) {
-			$new_content = '<h1>' . esc_html( $title ) . '</h1>' . "\n" . $raw_content;
-			wp_update_post( array(
-				'ID'           => $post_id,
-				'post_content' => $new_content,
-			) );
-			return true;
+			// If no heading tag exists at all, prepend post title as an H1 tag to post_content
+			$title = get_the_title( $post_id );
+			if ( ! empty( $title ) ) {
+				$new_content = '<h1>' . esc_html( $title ) . '</h1>' . "\n" . $raw_content;
+				wp_update_post( array(
+					'ID'           => $post_id,
+					'post_content' => $new_content,
+				) );
+				return true;
+			}
+		} catch ( \Throwable $t ) {
+			// Catch any Throwable exception safely
+			return false;
 		}
 
 		return false;
@@ -252,145 +276,148 @@ class Supercraft_SEO_Elementor_Parser {
 				break;
 
 			case 'image':
-				if ( ! empty( $settings['image']['id'] ) || ! empty( $settings['image']['url'] ) ) {
-					$img_id  = ! empty( $settings['image']['id'] ) ? absint( $settings['image']['id'] ) : 0;
-					$img_url = ! empty( $settings['image']['url'] ) ? esc_url_raw( $settings['image']['url'] ) : '';
-					$alt     = '';
+				if ( ! empty( $settings['image']['url'] ) ) {
+					$url = esc_url_raw( $settings['image']['url'] );
+					$id  = isset( $settings['image']['id'] ) ? absint( $settings['image']['id'] ) : 0;
+					$alt = '';
 
-					if ( $img_id > 0 ) {
-						$alt = get_post_meta( $img_id, '_wp_attachment_image_alt', true );
+					if ( $id > 0 ) {
+						$alt = get_post_meta( $id, '_wp_attachment_image_alt', true );
+					}
+					if ( empty( $alt ) && ! empty( $settings['caption'] ) ) {
+						$alt = wp_strip_all_tags( $settings['caption'] );
 					}
 
-					$parsed['images'][] = array(
-						'id'  => $img_id,
-						'url' => $img_url,
+					$parsed['images']['all'][] = array(
+						'url' => $url,
 						'alt' => $alt,
+						'id'  => $id,
 					);
-				}
-				break;
 
-			case 'icon-box':
-			case 'image-box':
-			case 'info-box':
-				if ( ! empty( $settings['title_text'] ) ) {
-					$parsed['headings']['h3'][] = array(
-						'text' => wp_strip_all_tags( $settings['title_text'] ),
-						'tag'  => 'h3',
-					);
-				}
-				if ( ! empty( $settings['description_text'] ) ) {
-					$parsed['paragraphs'][] = wp_strip_all_tags( $settings['description_text'] );
-				}
-				break;
-
-			case 'call-to-action':
-				if ( ! empty( $settings['title'] ) ) {
-					$parsed['headings']['h2'][] = array(
-						'text' => wp_strip_all_tags( $settings['title'] ),
-						'tag'  => 'h2',
-					);
-				}
-				if ( ! empty( $settings['description'] ) ) {
-					$parsed['paragraphs'][] = wp_strip_all_tags( $settings['description'] );
-				}
-				break;
-
-			case 'icon-list':
-				if ( ! empty( $settings['icon_list'] ) && is_array( $settings['icon_list'] ) ) {
-					foreach ( $settings['icon_list'] as $item ) {
-						if ( ! empty( $item['text'] ) ) {
-							$parsed['paragraphs'][] = wp_strip_all_tags( $item['text'] );
-						}
+					if ( empty( trim( $alt ) ) ) {
+						$parsed['images']['missing_alts'][] = $url;
 					}
-				}
-				break;
-
-			case 'accordion':
-			case 'toggle':
-			case 'tabs':
-				if ( ! empty( $settings['tabs'] ) && is_array( $settings['tabs'] ) ) {
-					foreach ( $settings['tabs'] as $tab ) {
-						if ( ! empty( $tab['tab_title'] ) ) {
-							$parsed['headings']['h3'][] = array(
-								'text' => wp_strip_all_tags( $tab['tab_title'] ),
-								'tag'  => 'h3',
-							);
-						}
-						if ( ! empty( $tab['tab_content'] ) ) {
-							$parsed['paragraphs'][] = wp_strip_all_tags( $tab['tab_content'] );
-						}
-					}
-				}
-				break;
-
-			case 'testimonial':
-				if ( ! empty( $settings['testimonial_content'] ) ) {
-					$parsed['paragraphs'][] = wp_strip_all_tags( $settings['testimonial_content'] );
-				}
-				break;
-
-			case 'button':
-				if ( ! empty( $settings['text'] ) ) {
-					$parsed['paragraphs'][] = wp_strip_all_tags( $settings['text'] );
-				}
-				break;
-
-			default:
-				if ( ! empty( $settings['title'] ) && is_string( $settings['title'] ) ) {
-					$parsed['headings']['h3'][] = array(
-						'text' => wp_strip_all_tags( $settings['title'] ),
-						'tag'  => 'h3',
-					);
-				}
-				if ( ! empty( $settings['editor'] ) && is_string( $settings['editor'] ) ) {
-					$parsed['paragraphs'][] = wp_strip_all_tags( $settings['editor'] );
 				}
 				break;
 		}
 	}
 
 	/**
-	 * Fallback HTML parser for non-Elementor posts.
+	 * Fallback HTML Regex Parser for post_content.
 	 *
-	 * @param string $html Raw HTML content.
-	 * @param array  &$parsed Target parsed result reference.
+	 * @param string $content HTML content.
+	 * @param array  &$parsed Target parsed array reference.
 	 */
-	private function parse_raw_html_fallback( $html, &$parsed ) {
-		if ( preg_match_all( '/<h([1-4])\b[^>]*>(.*?)<\/h\1>/is', $html, $matches, PREG_SET_ORDER ) ) {
+	private function parse_raw_html_content( $content, &$parsed ) {
+		if ( empty( $content ) ) {
+			return;
+		}
+
+		// Extract headings <h1-h6>
+		if ( preg_match_all( '/<h([1-6])\b[^>]*>(.*?)<\/h\1>/is', $content, $matches, PREG_SET_ORDER ) ) {
 			foreach ( $matches as $match ) {
-				$tag_num = 'h' . $match[1];
+				$tag_num = $match[1];
+				$tag_key = 'h' . $tag_num;
 				$text    = wp_strip_all_tags( $match[2] );
-				if ( ! empty( $text ) ) {
-					$parsed['headings'][ $tag_num ][] = array(
+
+				if ( ! empty( trim( $text ) ) ) {
+					$parsed['headings'][ $tag_key ][] = array(
 						'text' => $text,
-						'tag'  => $tag_num,
+						'tag'  => $tag_key,
 					);
 				}
 			}
 		}
 
-		if ( preg_match_all( '/<p\b[^>]*>(.*?)<\/p>/is', $html, $matches ) ) {
-			foreach ( $matches[1] as $p_text ) {
-				$clean = wp_strip_all_tags( $p_text );
-				if ( ! empty( $clean ) ) {
-					$parsed['paragraphs'][] = $clean;
+		// Extract paragraphs <p>
+		if ( preg_match_all( '/<p\b[^>]*>(.*?)<\/p>/is', $content, $p_matches ) ) {
+			foreach ( $p_matches[1] as $p_text ) {
+				$clean_p = wp_strip_all_tags( $p_text );
+				if ( ! empty( trim( $clean_p ) ) ) {
+					$parsed['paragraphs'][] = $clean_p;
 				}
 			}
 		}
 
-		if ( preg_match_all( '/<img\b[^>]+src=["\']([^"\']+)["\'][^>]*>/i', $html, $img_matches, PREG_SET_ORDER ) ) {
-			foreach ( $img_matches as $img ) {
-				$url = esc_url_raw( $img[1] );
+		// Extract images <img src="..." alt="...">
+		if ( preg_match_all( '/<img\b[^>]+src=["\']([^"\']+)["\'][^>]*>/is', $content, $img_matches, PREG_SET_ORDER ) ) {
+			foreach ( $img_matches as $img_tag ) {
+				$url = esc_url_raw( $img_tag[1] );
 				$alt = '';
-				if ( preg_match( '/alt=["\']([^"\']*)["\']/i', $img[0], $alt_match ) ) {
-					$alt = sanitize_text_field( $alt_match[1] );
+
+				if ( preg_match( '/alt=["\']([^"\']*)["\']/is', $img_tag[0], $alt_match ) ) {
+					$alt = wp_strip_all_tags( $alt_match[1] );
 				}
-				$parsed['images'][] = array(
-					'id'  => 0,
-					'url' => $url,
-					'alt' => $alt,
-				);
+
+				// Check if already extracted
+				$already_found = false;
+				foreach ( $parsed['images']['all'] as $existing ) {
+					if ( $existing['url'] === $url ) {
+						$already_found = true;
+						break;
+					}
+				}
+
+				if ( ! $already_found ) {
+					$parsed['images']['all'][] = array(
+						'url' => $url,
+						'alt' => $alt,
+						'id'  => 0,
+					);
+
+					if ( empty( trim( $alt ) ) ) {
+						$parsed['images']['missing_alts'][] = $url;
+					}
+				}
 			}
 		}
+	}
+
+	/**
+	 * Helper: Flatten all extracted heading strings into a single array.
+	 *
+	 * @param array $headings Headings tree.
+	 * @return array Array of heading texts.
+	 */
+	private function flatten_headings( $headings ) {
+		$flat = array();
+		foreach ( $headings as $tag => $items ) {
+			if ( is_array( $items ) ) {
+				foreach ( $items as $item ) {
+					if ( ! empty( $item['text'] ) ) {
+						$flat[] = $item['text'];
+					}
+				}
+			}
+		}
+		return $flat;
+	}
+
+	/**
+	 * Return empty default parsed structure.
+	 *
+	 * @return array Empty parsed payload.
+	 */
+	private function get_empty_page_data() {
+		return array(
+			'post_id'      => 0,
+			'title'        => '',
+			'permalink'    => '',
+			'is_elementor' => false,
+			'headings'     => array(
+				'h1' => array(),
+				'h2' => array(),
+				'h3' => array(),
+				'h4' => array(),
+				'h5' => array(),
+				'h6' => array(),
+			),
+			'paragraphs'   => array(),
+			'word_count'   => 0,
+			'images'       => array(
+				'all'          => array(),
+				'missing_alts' => array(),
+			),
+		);
 	}
 }

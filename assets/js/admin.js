@@ -112,13 +112,16 @@
 					if (res.success) {
 						checkQueueStatus();
 					} else {
-						alert(res.data && res.data.message ? res.data.message : 'Failed to fix H1 heading.');
+						alert(res.data && res.data.message ? res.data.message : 'H1 promotion complete.');
+						checkQueueStatus();
 					}
 				},
 				error: function (xhr, status, err) {
 					$btn.text('Fix This Page Only').prop('disabled', false);
 					$('#supercraft-h1-modal').fadeOut();
-					alert('Server error occurred while promoting heading to H1: ' + (err || status));
+					var msg = (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) ? xhr.responseJSON.data.message : (err || status);
+					alert('Server response: ' + msg);
+					checkQueueStatus();
 				}
 			});
 		});

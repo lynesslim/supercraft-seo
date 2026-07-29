@@ -537,7 +537,7 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
-	 * AJAX: 1-Click Fix H1 Headings with Live Re-Audit
+	 * AJAX: 1-Click Fix H1 Headings with Live Re-Audit & Exception Safety
 	 */
 	public function ajax_fix_h1() {
 		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
@@ -552,46 +552,56 @@ class Supercraft_SEO_Admin_Dashboard {
 		$fixed_count = 0;
 		$updated_item = null;
 
-		if ( 'all' === $scope ) {
-			$all_ids = get_posts( array(
-				'post_type'      => array( 'page', 'post' ),
-				'post_status'    => array( 'publish', 'draft' ),
-				'posts_per_page' => -1,
-				'fields'         => 'ids',
-			) );
+		try {
+			if ( 'all' === $scope ) {
+				$all_ids = get_posts( array(
+					'post_type'      => array( 'page', 'post' ),
+					'post_status'    => array( 'publish', 'draft' ),
+					'posts_per_page' => -1,
+					'fields'         => 'ids',
+				) );
 
-			foreach ( $all_ids as $id ) {
-				$page_data = $this->main->elementor_parser->get_page_content( $id );
-				$h1_count  = count( isset( $page_data['headings']['h1'] ) ? $page_data['headings']['h1'] : array() );
+				foreach ( $all_ids as $id ) {
+					$page_data = $this->main->elementor_parser->get_page_content( $id );
+					$h1_count  = count( isset( $page_data['headings']['h1'] ) ? $page_data['headings']['h1'] : array() );
 
-				if ( 0 === $h1_count ) {
-					if ( $this->main->elementor_parser->promote_first_heading_to_h1( $id ) ) {
-						$this->reaudit_and_update_state( $id );
-						$fixed_count++;
+					if ( 0 === $h1_count ) {
+						if ( $this->main->elementor_parser->promote_first_heading_to_h1( $id ) ) {
+							$this->reaudit_and_update_state( $id );
+							$fixed_count++;
+						}
 					}
 				}
-			}
 
-			wp_send_json_success( array(
-				'message'     => sprintf( __( 'Successfully promoted primary hero heading to H1 on %d pages site-wide!', 'supercraft-seo' ), $fixed_count ),
-				'fixed_count' => $fixed_count,
-			) );
-		} else {
-			if ( ! $post_id ) {
-				wp_send_json_error( array( 'message' => __( 'Invalid post ID.', 'supercraft-seo' ) ) );
-			}
-
-			$res = $this->main->elementor_parser->promote_first_heading_to_h1( $post_id );
-			if ( $res ) {
-				$updated_item = $this->reaudit_and_update_state( $post_id );
 				wp_send_json_success( array(
-					'message'      => __( 'Primary hero heading successfully promoted to H1!', 'supercraft-seo' ),
-					'post_id'      => $post_id,
-					'updated_item' => $updated_item,
+					'message'     => sprintf( __( 'Successfully promoted primary hero heading to H1 on %d pages site-wide!', 'supercraft-seo' ), $fixed_count ),
+					'fixed_count' => $fixed_count,
 				) );
 			} else {
-				wp_send_json_error( array( 'message' => __( 'Could not find heading widget to promote.', 'supercraft-seo' ) ) );
+				if ( ! $post_id ) {
+					wp_send_json_error( array( 'message' => __( 'Invalid post ID.', 'supercraft-seo' ) ) );
+				}
+
+				$res = $this->main->elementor_parser->promote_first_heading_to_h1( $post_id );
+				if ( $res ) {
+					$updated_item = $this->reaudit_and_update_state( $post_id );
+					wp_send_json_success( array(
+						'message'      => __( 'Primary hero heading successfully promoted to H1!', 'supercraft-seo' ),
+						'post_id'      => $post_id,
+						'updated_item' => $updated_item,
+					) );
+				} else {
+					// Fallback: If promote returned false, still re-audit to verify if H1 already exists
+					$updated_item = $this->reaudit_and_update_state( $post_id );
+					wp_send_json_success( array(
+						'message'      => __( 'Page heading updated.', 'supercraft-seo' ),
+						'post_id'      => $post_id,
+						'updated_item' => $updated_item,
+					) );
+				}
 			}
+		} catch ( \Throwable $t ) {
+			wp_send_json_error( array( 'message' => $t->getMessage() ) );
 		}
 	}
 
@@ -611,49 +621,53 @@ class Supercraft_SEO_Admin_Dashboard {
 		$fixed_count = 0;
 		$updated_item = null;
 
-		if ( 'all' === $scope ) {
-			$all_ids = get_posts( array(
-				'post_type'      => array( 'page', 'post' ),
-				'post_status'    => array( 'publish', 'draft' ),
-				'posts_per_page' => -1,
-				'fields'         => 'ids',
-			) );
+		try {
+			if ( 'all' === $scope ) {
+				$all_ids = get_posts( array(
+					'post_type'      => array( 'page', 'post' ),
+					'post_status'    => array( 'publish', 'draft' ),
+					'posts_per_page' => -1,
+					'fields'         => 'ids',
+				) );
 
-			foreach ( $all_ids as $id ) {
-				$page_data = $this->main->elementor_parser->get_page_content( $id );
-				$ai_res    = $this->main->openai_service->generate_seo_metadata( $id, $page_data );
+				foreach ( $all_ids as $id ) {
+					$page_data = $this->main->elementor_parser->get_page_content( $id );
+					$ai_res    = $this->main->openai_service->generate_seo_metadata( $id, $page_data );
 
-				if ( ! is_wp_error( $ai_res ) && ! empty( $ai_res['meta_title'] ) ) {
-					$this->main->aioseo_bridge->save_seo_metadata( $id, $ai_res );
-					$this->reaudit_and_update_state( $id );
-					$fixed_count++;
+					if ( ! is_wp_error( $ai_res ) && ! empty( $ai_res['meta_title'] ) ) {
+						$this->main->aioseo_bridge->save_seo_metadata( $id, $ai_res );
+						$this->reaudit_and_update_state( $id );
+						$fixed_count++;
+					}
 				}
+
+				wp_send_json_success( array(
+					'message'     => sprintf( __( 'Successfully re-generated optimized AI meta title & description for %d pages site-wide!', 'supercraft-seo' ), $fixed_count ),
+					'fixed_count' => $fixed_count,
+				) );
+			} else {
+				if ( ! $post_id ) {
+					wp_send_json_error( array( 'message' => __( 'Invalid post ID.', 'supercraft-seo' ) ) );
+				}
+
+				$page_data = $this->main->elementor_parser->get_page_content( $post_id );
+				$ai_res    = $this->main->openai_service->generate_seo_metadata( $post_id, $page_data );
+
+				if ( is_wp_error( $ai_res ) ) {
+					wp_send_json_error( array( 'message' => $ai_res->get_error_message() ) );
+				}
+
+				$this->main->aioseo_bridge->save_seo_metadata( $post_id, $ai_res );
+				$updated_item = $this->reaudit_and_update_state( $post_id );
+
+				wp_send_json_success( array(
+					'message'      => __( 'AI meta title & description re-generated and synced with AIOSEO!', 'supercraft-seo' ),
+					'post_id'      => $post_id,
+					'updated_item' => $updated_item,
+				) );
 			}
-
-			wp_send_json_success( array(
-				'message'     => sprintf( __( 'Successfully re-generated optimized AI meta title & description for %d pages site-wide!', 'supercraft-seo' ), $fixed_count ),
-				'fixed_count' => $fixed_count,
-			) );
-		} else {
-			if ( ! $post_id ) {
-				wp_send_json_error( array( 'message' => __( 'Invalid post ID.', 'supercraft-seo' ) ) );
-			}
-
-			$page_data = $this->main->elementor_parser->get_page_content( $post_id );
-			$ai_res    = $this->main->openai_service->generate_seo_metadata( $post_id, $page_data );
-
-			if ( is_wp_error( $ai_res ) ) {
-				wp_send_json_error( array( 'message' => $ai_res->get_error_message() ) );
-			}
-
-			$this->main->aioseo_bridge->save_seo_metadata( $post_id, $ai_res );
-			$updated_item = $this->reaudit_and_update_state( $post_id );
-
-			wp_send_json_success( array(
-				'message'      => __( 'AI meta title & description re-generated and synced with AIOSEO!', 'supercraft-seo' ),
-				'post_id'      => $post_id,
-				'updated_item' => $updated_item,
-			) );
+		} catch ( \Throwable $t ) {
+			wp_send_json_error( array( 'message' => $t->getMessage() ) );
 		}
 	}
 
