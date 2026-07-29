@@ -28,6 +28,7 @@
 			} else {
 				$('#page-picker-container').slideUp();
 				$('#launch-btn-text').text('Run One-Click Technical SEO (All Pages)');
+				$('#audit-btn-text').text('Run Audit Only (All Pages)');
 			}
 		});
 
@@ -67,13 +68,17 @@
 				var count = $('.page-item-checkbox:checked').length;
 				if (count === 0) {
 					$('#launch-btn-text').text('Select Pages to Run Engine');
+					$('#audit-btn-text').text('Select Pages to Audit');
 				} else if (count === 1) {
 					$('#launch-btn-text').text('Run One-Click Technical SEO (1 Page Selected)');
+					$('#audit-btn-text').text('Run Audit Only (1 Page Selected)');
 				} else {
 					$('#launch-btn-text').text('Run One-Click Technical SEO (' + count + ' Pages Selected)');
+					$('#audit-btn-text').text('Run Audit Only (' + count + ' Pages Selected)');
 				}
 			} else {
 				$('#launch-btn-text').text('Run One-Click Technical SEO (All Pages)');
+				$('#audit-btn-text').text('Run Audit Only (All Pages)');
 			}
 		}
 
@@ -153,6 +158,7 @@
 				data: {
 					action: 'supercraft_seo_start_bg_queue',
 					nonce: supercraftSEO.nonce,
+					mode: 'full',
 					post_ids: targetIds,
 				},
 				success: function (res) {
@@ -241,6 +247,7 @@
 				data: {
 					action: 'supercraft_seo_start_bg_queue',
 					nonce: supercraftSEO.nonce,
+					mode: 'full',
 					post_ids: targetIds,
 				},
 				success: function (res) {
@@ -364,13 +371,23 @@
 			});
 		});
 
-		// Start Server Background Queue Trigger
+		// Start Full AI Auto-Fix One-Click Process
 		$('#supercraft-start-oneclick').on('click', function () {
-			var $btn = $(this);
-			var mode = $('input[name="target_mode"]:checked').val();
-			var selectedIds = [];
+			launchQueue('full');
+		});
 
-			if (mode === 'selected') {
+		// Start Audit Only Process (No AI Changes)
+		$('#supercraft-start-audit-only').on('click', function () {
+			launchQueue('audit_only');
+		});
+
+		function launchQueue(mode) {
+			var $btnOneClick = $('#supercraft-start-oneclick');
+			var $btnAudit    = $('#supercraft-start-audit-only');
+			var targetMode   = $('input[name="target_mode"]:checked').val();
+			var selectedIds  = [];
+
+			if (targetMode === 'selected') {
 				$('.page-item-checkbox:checked').each(function () {
 					selectedIds.push($(this).val());
 				});
@@ -381,7 +398,8 @@
 				}
 			}
 
-			$btn.prop('disabled', true).addClass('processing');
+			$btnOneClick.prop('disabled', true);
+			$btnAudit.prop('disabled', true);
 			$('#supercraft-stop-bg').show();
 			$('#supercraft-progress-container').slideDown();
 			$('#supercraft-results-card').slideDown();
@@ -389,9 +407,10 @@
 			var requestData = {
 				action: 'supercraft_seo_start_bg_queue',
 				nonce: supercraftSEO.nonce,
+				mode: mode,
 			};
 
-			if (mode === 'selected' && selectedIds.length > 0) {
+			if (targetMode === 'selected' && selectedIds.length > 0) {
 				requestData.post_ids = selectedIds;
 			}
 
@@ -404,17 +423,19 @@
 						startPolling();
 					} else {
 						$('#supercraft-progress-text').text(res.data.message || 'Failed to start queue.');
-						$btn.prop('disabled', false).removeClass('processing');
+						$btnOneClick.prop('disabled', false);
+						$btnAudit.prop('disabled', false);
 						$('#supercraft-stop-bg').hide();
 					}
 				},
 				error: function () {
 					$('#supercraft-progress-text').text('Error starting server background queue.');
-					$btn.prop('disabled', false).removeClass('processing');
+					$btnOneClick.prop('disabled', false);
+					$btnAudit.prop('disabled', false);
 					$('#supercraft-stop-bg').hide();
 				}
 			});
-		});
+		}
 
 		// Stop Server Background Queue Trigger
 		$('#supercraft-stop-bg').on('click', function () {
@@ -431,7 +452,8 @@
 				success: function (res) {
 					stopPolling();
 					$('#supercraft-progress-text').text('🛑 Background process stopped by user.');
-					$('#supercraft-start-oneclick').prop('disabled', false).removeClass('processing');
+					$('#supercraft-start-oneclick').prop('disabled', false);
+					$('#supercraft-start-audit-only').prop('disabled', false);
 					$btn.hide().text('🛑 Stop Background Process').prop('disabled', false);
 				}
 			});
@@ -466,7 +488,8 @@
 						var state = res.data;
 
 						if (state.status === 'running') {
-							$('#supercraft-start-oneclick').prop('disabled', true).addClass('processing');
+							$('#supercraft-start-oneclick').prop('disabled', true);
+							$('#supercraft-start-audit-only').prop('disabled', true);
 							$('#supercraft-stop-bg').show();
 							$('#supercraft-progress-container').slideDown();
 							$('#supercraft-results-card').slideDown();
@@ -474,8 +497,9 @@
 							var total = state.total || 1;
 							var count = state.processed_count || 0;
 							var percent = Math.round((count / total) * 100);
+							var modeLabel = state.mode === 'audit_only' ? 'Running audit' : 'Processing AI SEO';
 
-							$('#supercraft-progress-text').text('Processing on server (' + count + '/' + total + ' pages)...');
+							$('#supercraft-progress-text').text(modeLabel + ' on server (' + count + '/' + total + ' pages)...');
 							$('#supercraft-progress-percent').text(percent + '%');
 							$('#supercraft-progress-bar-fill').css('width', percent + '%');
 
@@ -501,10 +525,12 @@
 							}
 						} else if (state.status === 'completed') {
 							stopPolling();
-							$('#supercraft-progress-text').text('🎉 All selected pages processed & synced with AIOSEO!');
+							var completeLabel = state.mode === 'audit_only' ? '🎉 Technical SEO Audit complete!' : '🎉 All selected pages processed & synced with AIOSEO!';
+							$('#supercraft-progress-text').text(completeLabel);
 							$('#supercraft-progress-percent').text('100%');
 							$('#supercraft-progress-bar-fill').css('width', '100%');
-							$('#supercraft-start-oneclick').prop('disabled', false).removeClass('processing');
+							$('#supercraft-start-oneclick').prop('disabled', false);
+							$('#supercraft-start-audit-only').prop('disabled', false);
 							$('#supercraft-stop-bg').hide();
 							$('#supercraft-progress-container').slideDown();
 							$('#supercraft-results-card').slideDown();
@@ -515,7 +541,8 @@
 						} else if (state.status === 'stopped') {
 							stopPolling();
 							$('#supercraft-progress-text').text('🛑 Background process stopped.');
-							$('#supercraft-start-oneclick').prop('disabled', false).removeClass('processing');
+							$('#supercraft-start-oneclick').prop('disabled', false);
+							$('#supercraft-start-audit-only').prop('disabled', false);
 							$('#supercraft-stop-bg').hide();
 							if (state.results && state.results.length > 0) {
 								$('#supercraft-results-card').slideDown();

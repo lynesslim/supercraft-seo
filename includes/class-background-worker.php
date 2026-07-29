@@ -8,7 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * 
  * Manages server-side asynchronous background processing for batch Technical SEO
  * audit and AI meta generation with pause/stop capability.
- * Preserves existing audit results and updates items in-place.
+ * Supports both full AI auto-fix and audit-only diagnostic modes.
  */
 class Supercraft_SEO_Background_Worker {
 
@@ -32,12 +32,12 @@ class Supercraft_SEO_Background_Worker {
 
 	/**
 	 * Start a new background batch process for a list of post IDs.
-	 * Preserves existing audited result cards and updates items in-place.
 	 *
-	 * @param array $post_ids List of post IDs to process.
+	 * @param array  $post_ids List of post IDs to process.
+	 * @param string $mode Processing mode: 'full' (AI fix & sync) or 'audit_only' (diagnostic inspection only).
 	 * @return array Queue initial status state.
 	 */
-	public function start_queue( $post_ids ) {
+	public function start_queue( $post_ids, $mode = 'full' ) {
 		if ( empty( $post_ids ) || ! is_array( $post_ids ) ) {
 			return false;
 		}
@@ -47,6 +47,7 @@ class Supercraft_SEO_Background_Worker {
 
 		$state = array(
 			'status'          => 'running',
+			'mode'            => in_array( $mode, array( 'full', 'audit_only' ), true ) ? $mode : 'full',
 			'total'           => count( $post_ids ),
 			'processed_count' => 0,
 			'pending_ids'     => array_values( array_map( 'absint', $post_ids ) ),
@@ -101,6 +102,7 @@ class Supercraft_SEO_Background_Worker {
 		if ( empty( $state ) ) {
 			return array(
 				'status'          => 'idle',
+				'mode'            => 'full',
 				'total'           => 0,
 				'processed_count' => 0,
 				'pending_ids'     => array(),
@@ -114,8 +116,7 @@ class Supercraft_SEO_Background_Worker {
 
 	/**
 	 * Process the next item in the background queue.
-	 * Automatically promotes H1 headings if missing and generates AI metadata.
-	 * Updates existing audit card entries in-place.
+	 * Handles both 'full' AI generation & auto-fix mode and 'audit_only' diagnostic mode.
 	 *
 	 * @return bool True if item was processed, false if queue is empty or stopped.
 	 */
@@ -131,37 +132,45 @@ class Supercraft_SEO_Background_Worker {
 			return false;
 		}
 
+		$mode = isset( $state['mode'] ) ? $state['mode'] : 'full';
+
 		// Pop next post ID from pending queue
 		$post_id = array_shift( $state['pending_ids'] );
 
 		// 1. Extract Elementor Copy
 		$page_data = $this->main->elementor_parser->get_page_content( $post_id );
 
-		// 2. Auto-Fix H1 Heading if missing
-		$h1_count = count( isset( $page_data['headings']['h1'] ) ? $page_data['headings']['h1'] : array() );
-		if ( 0 === $h1_count ) {
-			$this->main->elementor_parser->promote_first_heading_to_h1( $post_id );
-			$page_data = $this->main->elementor_parser->get_page_content( $post_id );
-		}
-
-		// 3. Generate AI Metadata
 		$seo_generated = false;
 		$seo_data      = array();
 		$openai_error  = null;
 
-		$ai_res = $this->main->openai_service->generate_seo_metadata( $post_id, $page_data );
-
-		if ( is_wp_error( $ai_res ) ) {
-			$openai_error = $ai_res->get_error_message();
-			$seo_data     = $this->main->aioseo_bridge->get_existing_seo_metadata( $post_id );
+		if ( 'audit_only' === $mode ) {
+			// Audit-Only Mode: Purely diagnostic. Zero content/meta modifications.
+			$seo_data = $this->main->aioseo_bridge->get_existing_seo_metadata( $post_id );
+			if ( ! empty( $seo_data['meta_title'] ) || ! empty( $seo_data['title'] ) ) {
+				$seo_generated = true;
+			}
 		} else {
-			$seo_data      = $ai_res;
-			$seo_generated = true;
-			// 4. Save into AIOSEO
-			$this->main->aioseo_bridge->save_seo_metadata( $post_id, $seo_data );
+			// Full Mode: Auto-fix H1 and generate AI metadata
+			$h1_count = count( isset( $page_data['headings']['h1'] ) ? $page_data['headings']['h1'] : array() );
+			if ( 0 === $h1_count ) {
+				$this->main->elementor_parser->promote_first_heading_to_h1( $post_id );
+				$page_data = $this->main->elementor_parser->get_page_content( $post_id );
+			}
+
+			$ai_res = $this->main->openai_service->generate_seo_metadata( $post_id, $page_data );
+
+			if ( is_wp_error( $ai_res ) ) {
+				$openai_error = $ai_res->get_error_message();
+				$seo_data     = $this->main->aioseo_bridge->get_existing_seo_metadata( $post_id );
+			} else {
+				$seo_data      = $ai_res;
+				$seo_generated = true;
+				$this->main->aioseo_bridge->save_seo_metadata( $post_id, $seo_data );
+			}
 		}
 
-		// 5. Audit
+		// Perform Technical SEO Audit
 		$audit_result = $this->main->seo_auditor->run_audit( $post_id, $page_data, $seo_data );
 
 		$result_item = array(

@@ -85,7 +85,6 @@ class Supercraft_SEO_Admin_Dashboard {
 				__( 'Supercraft', 'supercraft-seo' ),
 				'manage_options',
 				'supercraft-seo',
-				'supercraft-seo',
 				array( $this, 'render_dashboard_page' ),
 				'dashicons-chart-bar',
 				30
@@ -326,6 +325,9 @@ class Supercraft_SEO_Admin_Dashboard {
 								<button id="supercraft-start-oneclick" class="supercraft-btn-launch">
 									<span class="dashicons dashicons-lightning"></span> <span id="launch-btn-text">Run One-Click Technical SEO (All Pages)</span>
 								</button>
+								<button id="supercraft-start-audit-only" class="supercraft-btn-audit-only">
+									<span class="dashicons dashicons-search"></span> <span id="audit-btn-text">Run Audit Only (All Pages)</span>
+								</button>
 								<button id="supercraft-stop-bg" class="supercraft-btn-stop" style="display:none;">
 									<span class="dashicons dashicons-no-alt"></span> 🛑 Stop Background Process
 								</button>
@@ -454,6 +456,8 @@ class Supercraft_SEO_Admin_Dashboard {
 			wp_send_json_error( array( 'message' => __( 'License validation required.', 'supercraft-seo' ) ) );
 		}
 
+		$mode = isset( $_POST['mode'] ) ? sanitize_text_field( $_POST['mode'] ) : 'full';
+
 		$post_ids = array();
 		if ( ! empty( $_POST['post_ids'] ) && is_array( $_POST['post_ids'] ) ) {
 			$post_ids = array_values( array_map( 'absint', $_POST['post_ids'] ) );
@@ -471,7 +475,7 @@ class Supercraft_SEO_Admin_Dashboard {
 			wp_send_json_error( array( 'message' => __( 'No pages or posts selected to process.', 'supercraft-seo' ) ) );
 		}
 
-		$state = $this->main->background_worker->start_queue( $post_ids );
+		$state = $this->main->background_worker->start_queue( $post_ids, $mode );
 
 		wp_send_json_success( array(
 			'message' => __( 'Server background queue started!', 'supercraft-seo' ),

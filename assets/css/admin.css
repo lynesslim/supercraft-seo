@@ -522,9 +522,9 @@
 .supercraft-btn-launch {
 	background: var(--sc-gradient-primary);
 	color: #fff;
-	font-size: 15px;
+	font-size: 14px;
 	font-weight: 700;
-	padding: 14px 32px;
+	padding: 13px 26px;
 	border: none;
 	border-radius: 10px;
 	cursor: pointer;
@@ -532,7 +532,7 @@
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 	display: inline-flex;
 	align-items: center;
-	gap: 10px;
+	gap: 8px;
 }
 
 .supercraft-btn-launch:hover {
@@ -540,12 +540,34 @@
 	box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
 }
 
+.supercraft-btn-audit-only {
+	background: #ffffff;
+	color: #334155;
+	font-size: 14px;
+	font-weight: 700;
+	padding: 12px 24px;
+	border: 1px solid #cbd5e1;
+	border-radius: 10px;
+	cursor: pointer;
+	box-shadow: var(--sc-shadow-sm);
+	transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.supercraft-btn-audit-only:hover {
+	background: #f8fafc;
+	border-color: #94a3b8;
+	transform: translateY(-2px);
+}
+
 .supercraft-btn-stop {
 	background: var(--sc-gradient-danger);
 	color: #fff;
-	font-size: 15px;
+	font-size: 14px;
 	font-weight: 700;
-	padding: 14px 28px;
+	padding: 13px 24px;
 	border: none;
 	border-radius: 10px;
 	cursor: pointer;
