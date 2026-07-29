@@ -81,13 +81,18 @@ class Supercraft_SEO_Elementor_Parser {
 	 * @return bool True if heading was promoted to H1, false otherwise.
 	 */
 	public function promote_first_heading_to_h1( $post_id ) {
-		$is_elementor = get_post_meta( $post_id, '_elementor_edit_mode', true );
+		$post_id = absint( $post_id );
+		if ( ! $post_id ) {
+			return false;
+		}
+
+		$is_elementor   = get_post_meta( $post_id, '_elementor_edit_mode', true );
 		$elementor_data = get_post_meta( $post_id, '_elementor_data', true );
 
 		if ( 'builder' === $is_elementor && ! empty( $elementor_data ) ) {
 			$elements = is_string( $elementor_data ) ? json_decode( $elementor_data, true ) : $elementor_data;
 
-			if ( is_array( $elements ) ) {
+			if ( is_array( $elements ) && ! empty( $elements ) ) {
 				$promoted = false;
 				$this->promote_heading_in_elements( $elements, $promoted );
 
@@ -95,26 +100,39 @@ class Supercraft_SEO_Elementor_Parser {
 					// Save updated Elementor JSON structure
 					update_post_meta( $post_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
 					
-					// Clear Elementor CSS cache if class exists
-					if ( class_exists( '\Elementor\Plugin' ) ) {
-						\Elementor\Plugin::$instance->files_manager->clear_stack();
+					// Safely clear Elementor CSS cache
+					try {
+						if ( class_exists( '\Elementor\Plugin' ) && isset( \Elementor\Plugin::$instance->files_manager ) ) {
+							\Elementor\Plugin::$instance->files_manager->clear_stack();
+						}
+					} catch ( Exception $e ) {
+						// Ignore cache clear error
 					}
 					return true;
 				}
 			}
 		}
 
-		// Fallback for standard WordPress posts/pages: replace top <h2> or <h3> in post_content with <h1>
+		// Fallback for standard WordPress posts/pages or Elementor pages with non-heading top widgets
 		$raw_content = get_post_field( 'post_content', $post_id );
-		if ( ! empty( $raw_content ) ) {
-			if ( preg_match( '/<h[2-4]\b([^>]*)>(.*?)<\/h[2-4]>/is', $raw_content ) ) {
-				$new_content = preg_replace( '/<h[2-4]\b([^>]*)>(.*?)<\/h[2-4]>/is', '<h1$1>$2</h1>', $raw_content, 1 );
-				wp_update_post( array(
-					'ID'           => $post_id,
-					'post_content' => $new_content,
-				) );
-				return true;
-			}
+		if ( ! empty( $raw_content ) && preg_match( '/<h[2-4]\b([^>]*)>(.*?)<\/h[2-4]>/is', $raw_content ) ) {
+			$new_content = preg_replace( '/<h[2-4]\b([^>]*)>(.*?)<\/h[2-4]>/is', '<h1$1>$2</h1>', $raw_content, 1 );
+			wp_update_post( array(
+				'ID'           => $post_id,
+				'post_content' => $new_content,
+			) );
+			return true;
+		}
+
+		// If no heading tag exists at all, prepend post title as an H1 tag to post_content
+		$title = get_the_title( $post_id );
+		if ( ! empty( $title ) ) {
+			$new_content = '<h1>' . esc_html( $title ) . '</h1>' . "\n" . $raw_content;
+			wp_update_post( array(
+				'ID'           => $post_id,
+				'post_content' => $new_content,
+			) );
+			return true;
 		}
 
 		return false;
@@ -127,12 +145,15 @@ class Supercraft_SEO_Elementor_Parser {
 	 * @param bool  &$promoted Reference flag indicating if promotion succeeded.
 	 */
 	private function promote_heading_in_elements( &$elements, &$promoted ) {
+		$target_types = array( 'heading', 'theme-post-title', 'page-title', 'post-title', 'animated-headline', 'title-box' );
+
 		foreach ( $elements as &$element ) {
 			if ( $promoted ) {
 				return;
 			}
 
-			if ( isset( $element['widgetType'] ) && 'heading' === $element['widgetType'] ) {
+			$widget_type = isset( $element['widgetType'] ) ? $element['widgetType'] : '';
+			if ( in_array( $widget_type, $target_types, true ) || ( ! empty( $widget_type ) && isset( $element['settings']['header_size'] ) ) ) {
 				if ( ! isset( $element['settings'] ) ) {
 					$element['settings'] = array();
 				}

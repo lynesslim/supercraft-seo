@@ -78,7 +78,7 @@
 
 		// H1 Modal Event Handlers
 		$(document).on('click', '.btn-fix-h1', function () {
-			currentFixH1PostId = $(this).data('postid');
+			currentFixH1PostId = parseInt($(this).attr('data-postid'), 10);
 			$('#supercraft-h1-modal').fadeIn();
 		});
 
@@ -106,8 +106,13 @@
 					if (res.success) {
 						checkQueueStatus();
 					} else {
-						alert(res.data.message || 'Failed to fix H1 heading.');
+						alert(res.data && res.data.message ? res.data.message : 'Failed to fix H1 heading.');
 					}
+				},
+				error: function (xhr, status, err) {
+					$btn.text('Fix This Page Only').prop('disabled', false);
+					$('#supercraft-h1-modal').fadeOut();
+					alert('Server error occurred while promoting heading to H1: ' + (err || status));
 				}
 			});
 		});
@@ -131,15 +136,20 @@
 					if (res.success) {
 						checkQueueStatus();
 					} else {
-						alert(res.data.message || 'Failed to fix H1 headings.');
+						alert(res.data && res.data.message ? res.data.message : 'Failed to fix H1 headings.');
 					}
+				},
+				error: function (xhr, status, err) {
+					$btn.text('Fix All Pages Site-Wide').prop('disabled', false);
+					$('#supercraft-h1-modal').fadeOut();
+					alert('Server error occurred while promoting headings to H1: ' + (err || status));
 				}
 			});
 		});
 
 		// Meta AI Modal Event Handlers
 		$(document).on('click', '.btn-fix-meta-title, .btn-fix-meta-desc', function () {
-			currentFixMetaPostId = $(this).data('postid');
+			currentFixMetaPostId = parseInt($(this).attr('data-postid'), 10);
 			$('#supercraft-meta-modal').fadeIn();
 		});
 
@@ -167,8 +177,13 @@
 					if (res.success) {
 						checkQueueStatus();
 					} else {
-						alert(res.data.message || 'Failed to fix Meta AI.');
+						alert(res.data && res.data.message ? res.data.message : 'Failed to fix Meta AI.');
 					}
+				},
+				error: function (xhr, status, err) {
+					$btn.text('Fix This Page Only').prop('disabled', false);
+					$('#supercraft-meta-modal').fadeOut();
+					alert('Server error occurred while generating AI meta: ' + (err || status));
 				}
 			});
 		});
@@ -192,8 +207,13 @@
 					if (res.success) {
 						checkQueueStatus();
 					} else {
-						alert(res.data.message || 'Failed to fix Meta AI.');
+						alert(res.data && res.data.message ? res.data.message : 'Failed to fix Meta AI.');
 					}
+				},
+				error: function (xhr, status, err) {
+					$btn.text('Fix All Pages Site-Wide').prop('disabled', false);
+					$('#supercraft-meta-modal').fadeOut();
+					alert('Server error occurred while generating AI meta: ' + (err || status));
 				}
 			});
 		});
@@ -495,11 +515,15 @@
 			html += '</div>';
 
 			if (data.seo_generated && data.seo_data) {
+				var metaTitle = data.seo_data.meta_title || data.seo_data.title || '';
+				var metaDesc  = data.seo_data.meta_description || data.seo_data.description || '';
+				var focusKw   = data.seo_data.focus_keyword || data.seo_data.focus_keyphrase || '';
+
 				html += '<div class="seo-meta-preview">';
-				html += '<div class="preview-title">⚡ AIOSEO Title: ' + escapeHtml(data.seo_data.meta_title) + '</div>';
-				html += '<div class="preview-desc">Meta Description: ' + escapeHtml(data.seo_data.meta_description) + '</div>';
-				if (data.seo_data.focus_keyword) {
-					html += '<span class="preview-kw">Focus Keyword: ' + escapeHtml(data.seo_data.focus_keyword) + '</span>';
+				html += '<div class="preview-title">⚡ AIOSEO Title: ' + escapeHtml(metaTitle) + '</div>';
+				html += '<div class="preview-desc">Meta Description: ' + escapeHtml(metaDesc) + '</div>';
+				if (focusKw) {
+					html += '<span class="preview-kw">Focus Keyword: ' + escapeHtml(focusKw) + '</span>';
 				}
 				html += '</div>';
 			} else if (data.openai_error) {
@@ -584,7 +608,7 @@
 		// Fix Image ALTs via AJAX with live card refresh
 		$(document).on('click', '.btn-fix-alt', function () {
 			var $btn = $(this);
-			var postId = $btn.data('postid');
+			var postId = parseInt($btn.attr('data-postid'), 10);
 			var alts = $btn.data('alts');
 			$btn.text('Updating ALTs...').prop('disabled', true);
 
@@ -603,6 +627,9 @@
 					} else {
 						$btn.text('Failed').css({ background: '#ef4444' });
 					}
+				},
+				error: function () {
+					$btn.text('Failed').css({ background: '#ef4444' });
 				}
 			});
 		});
