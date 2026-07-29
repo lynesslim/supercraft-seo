@@ -117,34 +117,73 @@
 			});
 		});
 
-		// Fix All Pages Site-Wide H1
+		// Fix All Pages Site-Wide H1 with Live Progress Bar
 		$('#btn-h1-fix-all').on('click', function () {
-			var $btn = $(this);
-			$btn.text('Fixing All...').prop('disabled', true);
-
-			$.ajax({
-				url: supercraftSEO.ajaxUrl,
-				type: 'POST',
-				data: {
-					action: 'supercraft_seo_fix_h1',
-					nonce: supercraftSEO.nonce,
-					scope: 'all',
-				},
-				success: function (res) {
-					$btn.text('Fix All Pages Site-Wide').prop('disabled', false);
-					$('#supercraft-h1-modal').fadeOut();
-					if (res.success) {
-						checkQueueStatus();
-					} else {
-						alert(res.data && res.data.message ? res.data.message : 'Failed to fix H1 headings.');
-					}
-				},
-				error: function (xhr, status, err) {
-					$btn.text('Fix All Pages Site-Wide').prop('disabled', false);
-					$('#supercraft-h1-modal').fadeOut();
-					alert('Server error occurred while promoting headings to H1: ' + (err || status));
+			$('#supercraft-h1-modal').fadeOut();
+			
+			// Find all post IDs missing H1
+			var targetIds = [];
+			$('.audit-item-card').each(function () {
+				if ($(this).find('.btn-fix-h1').length > 0) {
+					var id = parseInt($(this).attr('data-postid'), 10);
+					if (id > 0) targetIds.push(id);
 				}
 			});
+
+			if (targetIds.length === 0) {
+				$('.audit-item-card').each(function () {
+					var id = parseInt($(this).attr('data-postid'), 10);
+					if (id > 0) targetIds.push(id);
+				});
+			}
+
+			if (targetIds.length === 0) {
+				alert('No pages found to fix H1 headings.');
+				return;
+			}
+
+			// Show Live Progress Bar
+			$('#supercraft-progress-container').slideDown();
+			$('#supercraft-progress-text').text('Fixing site-wide H1 headings... (0/' + targetIds.length + ' pages complete)');
+			$('#supercraft-progress-percent').text('0%');
+			$('#supercraft-progress-bar-fill').css('width', '0%');
+
+			var processedCount = 0;
+			var totalCount = targetIds.length;
+
+			function processNextH1(index) {
+				if (index >= totalCount) {
+					$('#supercraft-progress-text').text('🎉 All ' + totalCount + ' pages successfully updated to H1!');
+					$('#supercraft-progress-percent').text('100%');
+					$('#supercraft-progress-bar-fill').css('width', '100%');
+					checkQueueStatus();
+					return;
+				}
+
+				var pid = targetIds[index];
+				var currentNum = index + 1;
+				var percent = Math.round((currentNum / totalCount) * 100);
+
+				$('#supercraft-progress-text').text('Fixing H1 heading (' + currentNum + '/' + totalCount + ' pages)...');
+				$('#supercraft-progress-percent').text(percent + '%');
+				$('#supercraft-progress-bar-fill').css('width', percent + '%');
+
+				$.ajax({
+					url: supercraftSEO.ajaxUrl,
+					type: 'POST',
+					data: {
+						action: 'supercraft_seo_fix_h1',
+						nonce: supercraftSEO.nonce,
+						scope: 'single',
+						post_id: pid,
+					},
+					complete: function () {
+						processNextH1(index + 1);
+					}
+				});
+			}
+
+			processNextH1(0);
 		});
 
 		// Meta AI Modal Event Handlers
@@ -188,32 +227,51 @@
 			});
 		});
 
-		// Fix All Pages Site-Wide Meta AI
+		// Fix All Pages Site-Wide Meta AI via Server Background Queue
 		$('#btn-meta-fix-all').on('click', function () {
-			var $btn = $(this);
-			$btn.text('Fixing All via AI...').prop('disabled', true);
+			$('#supercraft-meta-modal').fadeOut();
+
+			// Collect all post IDs with meta warnings
+			var targetIds = [];
+			$('.audit-item-card').each(function () {
+				if ($(this).find('.btn-fix-meta-title, .btn-fix-meta-desc').length > 0) {
+					var id = parseInt($(this).attr('data-postid'), 10);
+					if (id > 0) targetIds.push(id);
+				}
+			});
+
+			if (targetIds.length === 0) {
+				$('.audit-item-card').each(function () {
+					var id = parseInt($(this).attr('data-postid'), 10);
+					if (id > 0) targetIds.push(id);
+				});
+			}
+
+			if (targetIds.length === 0) {
+				alert('No pages found to re-generate AI metadata.');
+				return;
+			}
+
+			// Launch Server Background Queue with Live Progress Bar
+			$('#supercraft-start-oneclick').prop('disabled', true).addClass('processing');
+			$('#supercraft-stop-bg').show();
+			$('#supercraft-progress-container').slideDown();
+			$('#supercraft-progress-text').text('Initializing server queue for ' + targetIds.length + ' pages...');
 
 			$.ajax({
 				url: supercraftSEO.ajaxUrl,
 				type: 'POST',
 				data: {
-					action: 'supercraft_seo_fix_meta',
+					action: 'supercraft_seo_start_bg_queue',
 					nonce: supercraftSEO.nonce,
-					scope: 'all',
+					post_ids: targetIds,
 				},
 				success: function (res) {
-					$btn.text('Fix All Pages Site-Wide').prop('disabled', false);
-					$('#supercraft-meta-modal').fadeOut();
 					if (res.success) {
-						checkQueueStatus();
+						startPolling();
 					} else {
-						alert(res.data && res.data.message ? res.data.message : 'Failed to fix Meta AI.');
+						alert('Failed to start background queue for Meta AI.');
 					}
-				},
-				error: function (xhr, status, err) {
-					$btn.text('Fix All Pages Site-Wide').prop('disabled', false);
-					$('#supercraft-meta-modal').fadeOut();
-					alert('Server error occurred while generating AI meta: ' + (err || status));
 				}
 			});
 		});
