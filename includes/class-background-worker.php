@@ -152,7 +152,7 @@ class Supercraft_SEO_Background_Worker {
 			}
 		} else {
 			// Full Mode: Auto-fix H1 and generate AI metadata
-			$h1_count = count( isset( $page_data['headings']['h1'] ) ? $page_data['headings']['h1'] : array() );
+			$h1_count = ( ! empty( $page_data['headings']['h1'] ) && is_array( $page_data['headings']['h1'] ) ) ? count( $page_data['headings']['h1'] ) : 0;
 			if ( 0 === $h1_count ) {
 				$this->main->elementor_parser->promote_first_heading_to_h1( $post_id );
 				$page_data = $this->main->elementor_parser->get_page_content( $post_id );
@@ -177,8 +177,8 @@ class Supercraft_SEO_Background_Worker {
 			'post_id'       => $post_id,
 			'title'         => get_the_title( $post_id ),
 			'permalink'     => get_permalink( $post_id ),
-			'is_elementor'  => $page_data['is_elementor'],
-			'word_count'    => $page_data['word_count'],
+			'is_elementor'  => isset( $page_data['is_elementor'] ) ? $page_data['is_elementor'] : false,
+			'word_count'    => isset( $page_data['word_count'] ) ? $page_data['word_count'] : 0,
 			'seo_generated' => $seo_generated,
 			'seo_data'      => $seo_data,
 			'openai_error'  => $openai_error,

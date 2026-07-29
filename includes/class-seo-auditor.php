@@ -138,11 +138,18 @@ class Supercraft_SEO_Auditor {
 		$passed = array();
 		$score  = 100;
 
-		$post_status = get_post_status( $post_id );
+		if ( ! is_array( $page_data ) ) {
+			$page_data = array();
+		}
+		if ( ! is_array( $seo_meta ) ) {
+			$seo_meta = array();
+		}
+
+		$post_status    = get_post_status( $post_id );
 		$post_permalink = get_permalink( $post_id );
 
-		// 1. Heading Hierarchy Audit
-		$h1_count = count( isset( $page_data['headings']['h1'] ) ? $page_data['headings']['h1'] : array() );
+		// 1. Heading Hierarchy Audit (PHP 8 Countable safe)
+		$h1_count = ( ! empty( $page_data['headings']['h1'] ) && is_array( $page_data['headings']['h1'] ) ) ? count( $page_data['headings']['h1'] ) : 0;
 
 		if ( 0 === $h1_count ) {
 			$issues[] = array(
@@ -167,7 +174,7 @@ class Supercraft_SEO_Auditor {
 		}
 
 		// 2. Content Length Audit
-		$word_count = isset( $page_data['word_count'] ) ? $page_data['word_count'] : 0;
+		$word_count = isset( $page_data['word_count'] ) ? (int) $page_data['word_count'] : 0;
 		if ( $word_count < 100 ) {
 			$issues[] = array(
 				'type'    => 'critical',
@@ -192,9 +199,9 @@ class Supercraft_SEO_Auditor {
 
 		// 3. Image Alt Attribute Audit
 		$missing_alt_images = array();
-		if ( ! empty( $page_data['images'] ) ) {
+		if ( ! empty( $page_data['images'] ) && is_array( $page_data['images'] ) ) {
 			foreach ( $page_data['images'] as $img ) {
-				if ( empty( $img['alt'] ) && ! empty( $img['url'] ) ) {
+				if ( is_array( $img ) && empty( $img['alt'] ) && ! empty( $img['url'] ) ) {
 					$missing_alt_images[] = $img;
 				}
 			}
@@ -292,57 +299,15 @@ class Supercraft_SEO_Auditor {
 			}
 		}
 
-		// 5. Indexability & Robots Audit
-		$noindex = get_post_meta( $post_id, '_aioseo_noindex', true );
-		if ( 'publish' !== $post_status ) {
-			$issues[] = array(
-				'type'    => 'warning',
-				'code'    => 'post_not_published',
-				'title'   => __( 'Page Not Published', 'supercraft-seo' ),
-				'message' => sprintf( __( 'Current status is "%s". Draft/Private pages are not indexed by Google.', 'supercraft-seo' ), $post_status ),
-				'fixable' => false,
-			);
-			$score -= 10;
-		} elseif ( '1' === $noindex || true === $noindex ) {
-			$issues[] = array(
-				'type'    => 'critical',
-				'code'    => 'noindex_tag_active',
-				'title'   => __( 'Noindex Meta Tag Enabled', 'supercraft-seo' ),
-				'message' => __( 'This page is set to NOINDEX. Search engines will ignore this page.', 'supercraft-seo' ),
-				'fixable' => true,
-			);
-			$score -= 30;
-		} else {
-			$passed[] = __( 'Indexability: Page is published and indexable.', 'supercraft-seo' );
-		}
-
-		// 6. HTTPS Mixed Content Audit
-		if ( is_ssl() ) {
-			$raw_text = isset( $page_data['raw_text'] ) ? $page_data['raw_text'] : '';
-			if ( false !== strpos( $raw_text, 'http://' ) ) {
-				$issues[] = array(
-					'type'    => 'warning',
-					'code'    => 'insecure_http_links',
-					'title'   => __( 'Insecure HTTP Links Detected', 'supercraft-seo' ),
-					'message' => __( 'Page contains non-HTTPS (http://) links on a secure HTTPS site, which can trigger mixed content warnings.', 'supercraft-seo' ),
-					'fixable' => false,
-				);
-				$score -= 10;
-			} else {
-				$passed[] = __( 'Security & Protocol: All links use HTTPS.', 'supercraft-seo' );
-			}
-		}
-
-		// Normalize final score
-		$score = max( 0, min( 100, $score ) );
+		// Calculate final score floor at 0
+		$final_score = max( 0, $score );
 
 		return array(
-			'post_id'   => $post_id,
-			'title'     => get_the_title( $post_id ),
-			'permalink' => $post_permalink,
-			'score'     => $score,
-			'issues'    => $issues,
-			'passed'    => $passed,
+			'score'       => $final_score,
+			'issues'      => $issues,
+			'passed'      => $passed,
+			'post_status' => $post_status,
+			'permalink'   => $post_permalink,
 		);
 	}
 }

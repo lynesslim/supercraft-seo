@@ -298,16 +298,22 @@ class Supercraft_SEO_Admin_Dashboard {
 							</div>
 
 							<div class="page-checklist-scroll">
-								<?php if ( ! empty( $available_posts ) ) : ?>
+								<?php if ( ! empty( $available_posts ) && is_array( $available_posts ) ) : ?>
 									<?php foreach ( $available_posts as $post_obj ) : ?>
 										<?php
-										$is_elem = get_post_meta( $post_obj->ID, '_elementor_edit_mode', true );
+										if ( ! is_object( $post_obj ) || empty( $post_obj->ID ) ) {
+											continue;
+										}
+										$p_id    = absint( $post_obj->ID );
+										$p_title = get_the_title( $p_id );
+										$p_type  = get_post_type( $p_id );
+										$is_elem = get_post_meta( $p_id, '_elementor_edit_mode', true );
 										?>
-										<label class="page-checkbox-item" data-title="<?php echo esc_attr( strtolower( $post_obj->post_title ) ); ?>">
-											<input type="checkbox" name="selected_post_ids[]" value="<?php echo esc_attr( $post_obj->ID ); ?>" class="page-item-checkbox" />
-											<span class="page-item-title"><?php echo esc_html( $post_obj->post_title ); ?></span>
+										<label class="page-checkbox-item" data-title="<?php echo esc_attr( strtolower( $p_title ) ); ?>">
+											<input type="checkbox" name="selected_post_ids[]" value="<?php echo esc_attr( $p_id ); ?>" class="page-item-checkbox" />
+											<span class="page-item-title"><?php echo esc_html( $p_title ); ?></span>
 											<span class="page-item-meta">
-												<span class="page-type-tag"><?php echo esc_html( strtoupper( $post_obj->post_type ) ); ?></span>
+												<span class="page-type-tag"><?php echo esc_html( strtoupper( $p_type ) ); ?></span>
 												<?php if ( 'builder' === $is_elem ) : ?>
 													<span class="elementor-tag">Elementor</span>
 												<?php endif; ?>
@@ -445,8 +451,8 @@ class Supercraft_SEO_Admin_Dashboard {
 			'post_id'       => $post_id,
 			'title'         => get_the_title( $post_id ),
 			'permalink'     => get_permalink( $post_id ),
-			'is_elementor'  => $page_data['is_elementor'],
-			'word_count'    => $page_data['word_count'],
+			'is_elementor'  => isset( $page_data['is_elementor'] ) ? $page_data['is_elementor'] : false,
+			'word_count'    => isset( $page_data['word_count'] ) ? $page_data['word_count'] : 0,
 			'seo_generated' => ! empty( $existing_seo['meta_title'] ),
 			'seo_data'      => $existing_seo,
 			'openai_error'  => null,
@@ -563,7 +569,7 @@ class Supercraft_SEO_Admin_Dashboard {
 
 				foreach ( $all_ids as $id ) {
 					$page_data = $this->main->elementor_parser->get_page_content( $id );
-					$h1_count  = count( isset( $page_data['headings']['h1'] ) ? $page_data['headings']['h1'] : array() );
+					$h1_count  = ( ! empty( $page_data['headings']['h1'] ) && is_array( $page_data['headings']['h1'] ) ) ? count( $page_data['headings']['h1'] ) : 0;
 
 					if ( 0 === $h1_count ) {
 						if ( $this->main->elementor_parser->promote_first_heading_to_h1( $id ) ) {
@@ -591,7 +597,6 @@ class Supercraft_SEO_Admin_Dashboard {
 						'updated_item' => $updated_item,
 					) );
 				} else {
-					// Fallback: If promote returned false, still re-audit to verify if H1 already exists
 					$updated_item = $this->reaudit_and_update_state( $post_id );
 					wp_send_json_success( array(
 						'message'      => __( 'Page heading updated.', 'supercraft-seo' ),
