@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Supercraft_SEO_Admin_Dashboard
  * 
- * Manages WP Admin Menu under Supercraft Parent, Settings UI, Assets enqueuing, and Pre-Flight Health Check AJAX.
+ * Manages WP Admin Menu under Supercraft Parent, Settings UI, Assets enqueuing, and Background Queue AJAX.
  */
 class Supercraft_SEO_Admin_Dashboard {
 
@@ -33,13 +33,21 @@ class Supercraft_SEO_Admin_Dashboard {
 		add_action( 'admin_post_supercraft_seo_save_embed_code', array( $this, 'handle_save_embed_code' ) );
 		add_action( 'admin_post_supercraft_seo_unlink', array( $this, 'handle_unlink_embed_code' ) );
 
-		// Register AJAX Actions
+		// Register Background Worker Ticker Hooks
+		add_action( 'wp_ajax_supercraft_seo_bg_tick', array( $this, 'ajax_bg_tick' ) );
+		add_action( 'wp_ajax_nopriv_supercraft_seo_bg_tick', array( $this, 'ajax_bg_tick' ) );
+
+		// Register Dashboard AJAX Actions
 		add_action( 'wp_ajax_supercraft_seo_save_settings', array( $this, 'ajax_save_settings' ) );
 		add_action( 'wp_ajax_supercraft_seo_run_preflight', array( $this, 'ajax_run_preflight' ) );
 		add_action( 'wp_ajax_supercraft_seo_update_site_title', array( $this, 'ajax_update_site_title' ) );
 		add_action( 'wp_ajax_supercraft_seo_update_blog_public', array( $this, 'ajax_update_blog_public' ) );
-		add_action( 'wp_ajax_supercraft_seo_get_posts', array( $this, 'ajax_get_posts' ) );
-		add_action( 'wp_ajax_supercraft_seo_process_single_post', array( $this, 'ajax_process_single_post' ) );
+		
+		// Server-Side Background Queue AJAX
+		add_action( 'wp_ajax_supercraft_seo_start_bg_queue', array( $this, 'ajax_start_bg_queue' ) );
+		add_action( 'wp_ajax_supercraft_seo_stop_bg_queue', array( $this, 'ajax_stop_bg_queue' ) );
+		add_action( 'wp_ajax_supercraft_seo_get_queue_status', array( $this, 'ajax_get_queue_status' ) );
+		
 		add_action( 'wp_ajax_supercraft_seo_fix_image_alts', array( $this, 'ajax_fix_image_alts' ) );
 	}
 
@@ -138,7 +146,6 @@ class Supercraft_SEO_Admin_Dashboard {
 		$model          = get_option( 'supercraft_seo_openai_model', 'gpt-4o-mini' );
 		$brand_voice    = get_option( 'supercraft_seo_brand_voice', 'Professional, authoritative, yet engaging' );
 		$aioseo_on      = $this->main->aioseo_bridge->is_aioseo_active();
-		$current_title  = get_bloginfo( 'name' );
 		?>
 		<div class="wrap supercraft-seo-wrap">
 			<!-- Header Banner -->
@@ -244,14 +251,17 @@ class Supercraft_SEO_Admin_Dashboard {
 					<!-- Hero Action Card -->
 					<div class="supercraft-card hero-action-card">
 						<div class="hero-action-header">
-							<h2>⚡ Supercraft One-Click SEO Engine</h2>
-							<p>Click below to audit all completed pages and automatically populate AIOSEO metadata.</p>
+							<h2>⚡ Server Background Technical SEO Engine</h2>
+							<p>Runs in the background on your server. You can freely navigate to other pages or close your browser while it works.</p>
 						</div>
 
-						<div class="hero-action-buttons">
+						<div class="hero-action-buttons" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
 							<?php if ( $is_validated ) : ?>
 								<button id="supercraft-start-oneclick" class="supercraft-btn-launch">
-									<span class="dashicons dashicons-lightning"></span> Run One-Click Technical SEO & Auto-Fix
+									<span class="dashicons dashicons-lightning"></span> Run One-Click Technical SEO (Server Background)
+								</button>
+								<button id="supercraft-stop-bg" class="supercraft-btn-stop" style="display:none;">
+									<span class="dashicons dashicons-no-alt"></span> 🛑 Stop Background Process
 								</button>
 							<?php else : ?>
 								<button class="supercraft-btn-launch" disabled style="opacity:0.5;cursor:not-allowed;">
@@ -263,7 +273,7 @@ class Supercraft_SEO_Admin_Dashboard {
 						<!-- Live Progress Bar -->
 						<div id="supercraft-progress-container" class="supercraft-progress-wrapper" style="display: none;">
 							<div class="supercraft-progress-header">
-								<span id="supercraft-progress-text">Initializing batch scan...</span>
+								<span id="supercraft-progress-text">Initializing background server queue...</span>
 								<span id="supercraft-progress-percent">0%</span>
 							</div>
 							<div class="supercraft-progress-bar-track">
@@ -292,6 +302,69 @@ class Supercraft_SEO_Admin_Dashboard {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * AJAX: Background Worker Ticker Webhook
+	 */
+	public function ajax_bg_tick() {
+		// Non-blocking ticker step
+		$this->main->background_worker->process_next_item();
+		wp_send_json_success( array( 'tick' => true ) );
+	}
+
+	/**
+	 * AJAX: Start Background Queue
+	 */
+	public function ajax_start_bg_queue() {
+		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
+
+		if ( ! Supercraft_SEO_Validation::is_validated() ) {
+			wp_send_json_error( array( 'message' => __( 'License validation required.', 'supercraft-seo' ) ) );
+		}
+
+		$query_args = array(
+			'post_type'      => array( 'page', 'post' ),
+			'post_status'    => array( 'publish', 'draft' ),
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+		);
+
+		$post_ids = get_posts( $query_args );
+
+		if ( empty( $post_ids ) ) {
+			wp_send_json_error( array( 'message' => __( 'No pages or posts found to process.', 'supercraft-seo' ) ) );
+		}
+
+		$state = $this->main->background_worker->start_queue( $post_ids );
+
+		wp_send_json_success( array(
+			'message' => __( 'Server background queue started!', 'supercraft-seo' ),
+			'state'   => $state,
+		) );
+	}
+
+	/**
+	 * AJAX: Stop Background Queue
+	 */
+	public function ajax_stop_bg_queue() {
+		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
+
+		$this->main->background_worker->stop_queue();
+
+		wp_send_json_success( array(
+			'message' => __( 'Background process stopped successfully.', 'supercraft-seo' ),
+		) );
+	}
+
+	/**
+	 * AJAX: Get Server Queue Status
+	 */
+	public function ajax_get_queue_status() {
+		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
+
+		$status = $this->main->background_worker->get_queue_status();
+		wp_send_json_success( $status );
 	}
 
 	/**
@@ -407,82 +480,6 @@ class Supercraft_SEO_Admin_Dashboard {
 		update_option( 'supercraft_seo_brand_voice', $brand_voice );
 
 		wp_send_json_success( array( 'message' => __( 'Preferences saved successfully!', 'supercraft-seo' ) ) );
-	}
-
-	/**
-	 * AJAX: Get List of Posts to process
-	 */
-	public function ajax_get_posts() {
-		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
-
-		if ( ! Supercraft_SEO_Validation::is_validated() ) {
-			wp_send_json_error( array( 'message' => __( 'License validation required.', 'supercraft-seo' ) ) );
-		}
-
-		$query_args = array(
-			'post_type'      => array( 'page', 'post' ),
-			'post_status'    => array( 'publish', 'draft' ),
-			'posts_per_page' => -1,
-			'fields'         => 'ids',
-		);
-
-		$post_ids = get_posts( $query_args );
-
-		wp_send_json_success( array(
-			'total'    => count( $post_ids ),
-			'post_ids' => $post_ids,
-		) );
-	}
-
-	/**
-	 * AJAX: Process single post
-	 */
-	public function ajax_process_single_post() {
-		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
-
-		if ( ! Supercraft_SEO_Validation::is_validated() ) {
-			wp_send_json_error( array( 'message' => __( 'License validation required.', 'supercraft-seo' ) ) );
-		}
-
-		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
-		if ( ! $post_id ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid post ID.', 'supercraft-seo' ) ) );
-		}
-
-		// 1. Extract content via Elementor Parser
-		$page_data = $this->main->elementor_parser->get_page_content( $post_id );
-
-		// 2. Generate SEO metadata via Superapp Endpoint
-		$seo_generated = false;
-		$seo_data      = array();
-		$openai_error  = null;
-
-		$ai_res = $this->main->openai_service->generate_seo_metadata( $post_id, $page_data );
-
-		if ( is_wp_error( $ai_res ) ) {
-			$openai_error = $ai_res->get_error_message();
-			$seo_data     = $this->main->aioseo_bridge->get_existing_seo_metadata( $post_id );
-		} else {
-			$seo_data      = $ai_res;
-			$seo_generated = true;
-			// 3. Auto-populate into AIOSEO
-			$this->main->aioseo_bridge->save_seo_metadata( $post_id, $seo_data );
-		}
-
-		// 4. Perform Technical SEO Audit
-		$audit_result = $this->main->seo_auditor->run_audit( $post_id, $page_data, $seo_data );
-
-		wp_send_json_success( array(
-			'post_id'       => $post_id,
-			'title'         => get_the_title( $post_id ),
-			'permalink'     => get_permalink( $post_id ),
-			'is_elementor'  => $page_data['is_elementor'],
-			'word_count'    => $page_data['word_count'],
-			'seo_generated' => $seo_generated,
-			'seo_data'      => $seo_data,
-			'openai_error'  => $openai_error,
-			'audit'         => $audit_result,
-		) );
 	}
 
 	/**

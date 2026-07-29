@@ -1,14 +1,15 @@
 (function ($) {
 	'use strict';
 
-	var postQueue = [];
-	var totalPosts = 0;
-	var processedCount = 0;
-	var resultsData = [];
+	var pollInterval = null;
+	var isPolling = false;
 
 	$(document).ready(function () {
 		// Run Pre-Flight Health Check on Load
 		runPreflightScan();
+
+		// Check Server Queue Status on Load
+		checkQueueStatus();
 
 		$('#supercraft-run-preflight-btn').on('click', function (e) {
 			e.preventDefault();
@@ -54,7 +55,6 @@
 				html += '<strong>' + icon + ' ' + escapeHtml(check.title) + ':</strong> ' + escapeHtml(check.message);
 				html += '</div>';
 
-				// 1-Click Fix for Brand Name
 				if (check.code === 'raw_brand_name' && check.suggested_name) {
 					html += '<div class="preflight-action-area">';
 					html += '<input type="text" class="input-clean-brand" value="' + escapeHtml(check.suggested_name) + '" placeholder="Clean Brand Name" />';
@@ -62,7 +62,6 @@
 					html += '</div>';
 				}
 
-				// 1-Click Fix for Search Indexing Blocked
 				if (check.code === 'search_indexing_blocked') {
 					html += '<div class="preflight-action-area">';
 					html += '<button class="button button-primary button-small btn-fix-indexing">Enable Indexing Now</button>';
@@ -128,6 +127,211 @@
 			});
 		});
 
+		// Start Server Background Queue Trigger
+		$('#supercraft-start-oneclick').on('click', function () {
+			var $btn = $(this);
+			$btn.prop('disabled', true).addClass('processing');
+			$('#supercraft-stop-bg').show();
+			$('#supercraft-progress-container').slideDown();
+			$('#supercraft-results-card').slideDown();
+			$('#supercraft-audit-results').html('');
+
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_start_bg_queue',
+					nonce: supercraftSEO.nonce,
+				},
+				success: function (res) {
+					if (res.success) {
+						startPolling();
+					} else {
+						$('#supercraft-progress-text').text(res.data.message || 'Failed to start queue.');
+						$btn.prop('disabled', false).removeClass('processing');
+						$('#supercraft-stop-bg').hide();
+					}
+				},
+				error: function () {
+					$('#supercraft-progress-text').text('Error starting server background queue.');
+					$btn.prop('disabled', false).removeClass('processing');
+					$('#supercraft-stop-bg').hide();
+				}
+			});
+		});
+
+		// Stop Server Background Queue Trigger
+		$('#supercraft-stop-bg').on('click', function () {
+			var $btn = $(this);
+			$btn.text('Stopping...').prop('disabled', true);
+
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_stop_bg_queue',
+					nonce: supercraftSEO.nonce,
+				},
+				success: function (res) {
+					stopPolling();
+					$('#supercraft-progress-text').text('🛑 Background process stopped by user.');
+					$('#supercraft-start-oneclick').prop('disabled', false).removeClass('processing');
+					$btn.hide().text('🛑 Stop Background Process').prop('disabled', false);
+				}
+			});
+		});
+
+		// Polling Functions
+		function startPolling() {
+			if (isPolling) return;
+			isPolling = true;
+			checkQueueStatus();
+			pollInterval = setInterval(checkQueueStatus, 3000);
+		}
+
+		function stopPolling() {
+			if (pollInterval) {
+				clearInterval(pollInterval);
+				pollInterval = null;
+			}
+			isPolling = false;
+		}
+
+		function checkQueueStatus() {
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_get_queue_status',
+					nonce: supercraftSEO.nonce,
+				},
+				success: function (res) {
+					if (res.success && res.data) {
+						var state = res.data;
+
+						if (state.status === 'running') {
+							$('#supercraft-start-oneclick').prop('disabled', true).addClass('processing');
+							$('#supercraft-stop-bg').show();
+							$('#supercraft-progress-container').slideDown();
+							$('#supercraft-results-card').slideDown();
+
+							var total = state.total || 1;
+							var count = state.processed_count || 0;
+							var percent = Math.round((count / total) * 100);
+
+							$('#supercraft-progress-text').text('Processing on server (' + count + '/' + total + ' pages)...');
+							$('#supercraft-progress-percent').text(percent + '%');
+							$('#supercraft-progress-bar-fill').css('width', percent + '%');
+
+							if (state.results && state.results.length > 0) {
+								renderAllResults(state.results);
+							}
+
+							if (!isPolling) {
+								startPolling();
+							}
+						} else if (state.status === 'completed') {
+							stopPolling();
+							$('#supercraft-progress-text').text('🎉 All pages processed & synced with AIOSEO!');
+							$('#supercraft-progress-percent').text('100%');
+							$('#supercraft-progress-bar-fill').css('width', '100%');
+							$('#supercraft-start-oneclick').prop('disabled', false).removeClass('processing');
+							$('#supercraft-stop-bg').hide();
+							$('#supercraft-progress-container').slideDown();
+							$('#supercraft-results-card').slideDown();
+
+							if (state.results && state.results.length > 0) {
+								renderAllResults(state.results);
+							}
+						} else if (state.status === 'stopped') {
+							stopPolling();
+							$('#supercraft-progress-text').text('🛑 Background process stopped.');
+							$('#supercraft-start-oneclick').prop('disabled', false).removeClass('processing');
+							$('#supercraft-stop-bg').hide();
+							if (state.results && state.results.length > 0) {
+								$('#supercraft-results-card').slideDown();
+								renderAllResults(state.results);
+							}
+						}
+					}
+				}
+			});
+		}
+
+		// Render All Results
+		function renderAllResults(results) {
+			$('#supercraft-audit-results').html('');
+			results.forEach(function (data) {
+				renderAuditItem(data);
+			});
+			updateFilterCounts();
+		}
+
+		// Render Single Audit Card UI
+		function renderAuditItem(data) {
+			var audit = data.audit;
+			var score = audit.score;
+			var scoreClass = score >= 80 ? 'high' : (score >= 50 ? 'medium' : 'low');
+
+			var category = 'fixed';
+			if (audit.issues.some(i => i.type === 'critical')) {
+				category = 'critical';
+			} else if (audit.issues.some(i => i.type === 'warning')) {
+				category = 'warning';
+			}
+
+			var html = '<div class="audit-item-card" data-category="' + category + '">';
+			
+			html += '<div class="audit-item-header">';
+			html += '<div class="audit-item-title-area">';
+			html += '<h4><a href="' + data.permalink + '" target="_blank" style="color:#fff;text-decoration:none;">' + escapeHtml(data.title) + '</a></h4>';
+			if (data.is_elementor) {
+				html += '<span style="font-size:10px;background:#334155;color:#94a3b8;padding:2px 6px;border-radius:4px;">Elementor</span>';
+			}
+			html += '</div>';
+			html += '<div class="score-badge ' + scoreClass + '">SEO Score: ' + score + '/100</div>';
+			html += '</div>';
+
+			if (data.seo_generated && data.seo_data) {
+				html += '<div class="seo-meta-preview">';
+				html += '<div class="preview-title">⚡ AIOSEO Title: ' + escapeHtml(data.seo_data.meta_title) + '</div>';
+				html += '<div class="preview-desc">Meta Description: ' + escapeHtml(data.seo_data.meta_description) + '</div>';
+				if (data.seo_data.focus_keyword) {
+					html += '<span class="preview-kw">Focus Keyword: ' + escapeHtml(data.seo_data.focus_keyword) + '</span>';
+				}
+				html += '</div>';
+			} else if (data.openai_error) {
+				html += '<div class="seo-meta-preview" style="border-left-color:#ef4444;color:#fca5a5;">';
+				html += '⚠️ AI Meta Generation Skipped: ' + escapeHtml(data.openai_error);
+				html += '</div>';
+			}
+
+			html += '<ul class="issues-list">';
+			
+			audit.issues.forEach(function (issue) {
+				var itemClass = issue.type === 'critical' ? 'issue-critical' : 'issue-warning';
+				var icon = issue.type === 'critical' ? '🔴' : '🟡';
+				
+				html += '<li class="' + itemClass + '">';
+				html += '<span>' + icon + ' <strong>' + escapeHtml(issue.title) + ':</strong> ' + escapeHtml(issue.message) + '</span>';
+
+				if (issue.code === 'missing_image_alts' && data.seo_data && data.seo_data.suggested_image_alts) {
+					html += '<button class="btn-fix-alt" data-postid="' + data.post_id + '" data-alts=\'' + JSON.stringify(data.seo_data.suggested_image_alts) + '\'>Fix ALTs via AI</button>';
+				}
+
+				html += '</li>';
+			});
+
+			if (audit.passed.length > 0) {
+				html += '<li class="issue-passed">🟢 <strong>Passed Checks:</strong> ' + audit.passed.join(' | ') + '</li>';
+			}
+
+			html += '</ul>';
+			html += '</div>';
+
+			$('#supercraft-audit-results').append(html);
+		}
+
 		// Save Settings AJAX
 		$('#supercraft-seo-settings-form').on('submit', function (e) {
 			e.preventDefault();
@@ -162,153 +366,6 @@
 				}
 			});
 		});
-
-		// One-Click Start Trigger
-		$('#supercraft-start-oneclick').on('click', function () {
-			var $btn = $(this);
-			$btn.prop('disabled', true).addClass('processing');
-			$('#supercraft-progress-container').slideDown();
-			$('#supercraft-results-card').slideDown();
-			$('#supercraft-audit-results').html('');
-			
-			resultsData = [];
-			processedCount = 0;
-
-			// Fetch Post IDs
-			$.ajax({
-				url: supercraftSEO.ajaxUrl,
-				type: 'POST',
-				data: {
-					action: 'supercraft_seo_get_posts',
-					nonce: supercraftSEO.nonce,
-				},
-				success: function (res) {
-					if (res.success && res.data.post_ids.length > 0) {
-						postQueue = res.data.post_ids;
-						totalPosts = postQueue.length;
-						$('#count-all').text(totalPosts);
-						processNextPost();
-					} else {
-						$('#supercraft-progress-text').text('No pages or posts found to process.');
-						$btn.prop('disabled', false);
-					}
-				},
-				error: function () {
-					$('#supercraft-progress-text').text('Failed to fetch pages/posts.');
-					$btn.prop('disabled', false);
-				}
-			});
-		});
-
-		// Process Queue Sequentially
-		function processNextPost() {
-			if (postQueue.length === 0) {
-				$('#supercraft-progress-text').text('🎉 All pages processed & synced with AIOSEO!');
-				$('#supercraft-progress-percent').text('100%');
-				$('#supercraft-progress-bar-fill').css('width', '100%');
-				$('#supercraft-start-oneclick').prop('disabled', false).removeClass('processing');
-				updateFilterCounts();
-				return;
-			}
-
-			var currentPostId = postQueue.shift();
-			var percent = Math.round((processedCount / totalPosts) * 100);
-
-			$('#supercraft-progress-text').text('Processing Page ID #' + currentPostId + ' (' + (processedCount + 1) + '/' + totalPosts + ')...');
-			$('#supercraft-progress-percent').text(percent + '%');
-			$('#supercraft-progress-bar-fill').css('width', percent + '%');
-
-			$.ajax({
-				url: supercraftSEO.ajaxUrl,
-				type: 'POST',
-				data: {
-					action: 'supercraft_seo_process_single_post',
-					nonce: supercraftSEO.nonce,
-					post_id: currentPostId,
-				},
-				success: function (res) {
-					processedCount++;
-					if (res.success) {
-						resultsData.push(res.data);
-						renderAuditItem(res.data);
-					}
-					processNextPost();
-				},
-				error: function () {
-					processedCount++;
-					processNextPost();
-				}
-			});
-		}
-
-		// Render Single Audit Card UI
-		function renderAuditItem(data) {
-			var audit = data.audit;
-			var score = audit.score;
-			var scoreClass = score >= 80 ? 'high' : (score >= 50 ? 'medium' : 'low');
-
-			var category = 'fixed';
-			if (audit.issues.some(i => i.type === 'critical')) {
-				category = 'critical';
-			} else if (audit.issues.some(i => i.type === 'warning')) {
-				category = 'warning';
-			}
-
-			var html = '<div class="audit-item-card" data-category="' + category + '">';
-			
-			// Header
-			html += '<div class="audit-item-header">';
-			html += '<div class="audit-item-title-area">';
-			html += '<h4><a href="' + data.permalink + '" target="_blank" style="color:#fff;text-decoration:none;">' + escapeHtml(data.title) + '</a></h4>';
-			if (data.is_elementor) {
-				html += '<span style="font-size:10px;background:#334155;color:#94a3b8;padding:2px 6px;border-radius:4px;">Elementor</span>';
-			}
-			html += '</div>';
-			html += '<div class="score-badge ' + scoreClass + '">SEO Score: ' + score + '/100</div>';
-			html += '</div>';
-
-			// AI Generated Meta Preview
-			if (data.seo_generated && data.seo_data) {
-				html += '<div class="seo-meta-preview">';
-				html += '<div class="preview-title">⚡ AIOSEO Title: ' + escapeHtml(data.seo_data.meta_title) + '</div>';
-				html += '<div class="preview-desc">Meta Description: ' + escapeHtml(data.seo_data.meta_description) + '</div>';
-				if (data.seo_data.focus_keyword) {
-					html += '<span class="preview-kw">Focus Keyword: ' + escapeHtml(data.seo_data.focus_keyword) + '</span>';
-				}
-				html += '</div>';
-			} else if (data.openai_error) {
-				html += '<div class="seo-meta-preview" style="border-left-color:#ef4444;color:#fca5a5;">';
-				html += '⚠️ AI Meta Generation Skipped: ' + escapeHtml(data.openai_error);
-				html += '</div>';
-			}
-
-			// Issues & Passed list
-			html += '<ul class="issues-list">';
-			
-			audit.issues.forEach(function (issue) {
-				var itemClass = issue.type === 'critical' ? 'issue-critical' : 'issue-warning';
-				var icon = issue.type === 'critical' ? '🔴' : '🟡';
-				
-				html += '<li class="' + itemClass + '">';
-				html += '<span>' + icon + ' <strong>' + escapeHtml(issue.title) + ':</strong> ' + escapeHtml(issue.message) + '</span>';
-
-				if (issue.code === 'missing_image_alts' && data.seo_data && data.seo_data.suggested_image_alts) {
-					html += '<button class="btn-fix-alt" data-postid="' + data.post_id + '" data-alts=\'' + JSON.stringify(data.seo_data.suggested_image_alts) + '\'>Fix ALTs via AI</button>';
-				}
-
-				html += '</li>';
-			});
-
-			if (audit.passed.length > 0) {
-				html += '<li class="issue-passed">🟢 <strong>Passed Checks:</strong> ' + audit.passed.join(' | ') + '</li>';
-			}
-
-			html += '</ul>';
-			html += '</div>';
-
-			$('#supercraft-audit-results').append(html);
-			updateFilterCounts();
-		}
 
 		// Fix Image ALTs via AJAX
 		$(document).on('click', '.btn-fix-alt', function () {

@@ -46,6 +46,13 @@ class Supercraft_SEO {
 	public $seo_auditor;
 
 	/**
+	 * Background Worker instance
+	 * 
+	 * @var Supercraft_SEO_Background_Worker
+	 */
+	public $background_worker;
+
+	/**
 	 * Admin Dashboard instance
 	 * 
 	 * @var Supercraft_SEO_Admin_Dashboard
@@ -68,10 +75,11 @@ class Supercraft_SEO {
 	 * Constructor
 	 */
 	private function __construct() {
-		$this->elementor_parser = new Supercraft_SEO_Elementor_Parser();
-		$this->openai_service   = new Supercraft_SEO_OpenAI();
-		$this->aioseo_bridge    = new Supercraft_SEO_AIOSEO_Bridge();
-		$this->seo_auditor      = new Supercraft_SEO_Auditor();
-		$this->admin_dashboard  = new Supercraft_SEO_Admin_Dashboard( $this );
+		$this->elementor_parser  = new Supercraft_SEO_Elementor_Parser();
+		$this->openai_service    = new Supercraft_SEO_OpenAI();
+		$this->aioseo_bridge     = new Supercraft_SEO_AIOSEO_Bridge();
+		$this->seo_auditor       = new Supercraft_SEO_Auditor();
+		$this->background_worker = new Supercraft_SEO_Background_Worker( $this );
+		$this->admin_dashboard   = new Supercraft_SEO_Admin_Dashboard( $this );
 	}
 }

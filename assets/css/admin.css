@@ -11,6 +11,7 @@
 	--sc-accent: #6366f1;
 	--sc-accent-hover: #4f46e5;
 	--sc-gradient-primary: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+	--sc-gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 	--sc-gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
 	--sc-success: #10b981;
 	--sc-warning: #f59e0b;
@@ -301,9 +302,9 @@
 .supercraft-btn-launch {
 	background: var(--sc-gradient-primary);
 	color: #fff;
-	font-size: 16px;
+	font-size: 15px;
 	font-weight: 700;
-	padding: 16px 36px;
+	padding: 14px 30px;
 	border: none;
 	border-radius: 12px;
 	cursor: pointer;
@@ -319,10 +320,25 @@
 	box-shadow: 0 14px 28px -5px rgba(99, 102, 241, 0.6);
 }
 
-.supercraft-btn-launch .dashicons {
-	font-size: 20px;
-	width: 20px;
-	height: 20px;
+.supercraft-btn-stop {
+	background: var(--sc-gradient-danger);
+	color: #fff;
+	font-size: 15px;
+	font-weight: 700;
+	padding: 14px 28px;
+	border: none;
+	border-radius: 12px;
+	cursor: pointer;
+	box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.4);
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.supercraft-btn-stop:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 14px 28px -5px rgba(239, 68, 68, 0.6);
 }
 
 /* Live Progress Bar */
