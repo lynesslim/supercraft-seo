@@ -126,6 +126,83 @@
 	border-bottom: 1px solid var(--sc-card-border);
 }
 
+/* Pre-Flight Card Styles */
+.preflight-card {
+	background: #0f172a;
+	border: 1px solid #334155;
+}
+
+.preflight-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 12px;
+}
+
+.preflight-header h2 {
+	margin: 0;
+	padding: 0;
+	border: none;
+}
+
+.preflight-list {
+	margin-top: 16px;
+}
+
+.preflight-loading {
+	font-size: 13px;
+	color: var(--sc-text-muted);
+	padding: 12px;
+	background: #1e293b;
+	border-radius: 8px;
+}
+
+.preflight-item {
+	font-size: 13px;
+	padding: 12px 16px;
+	border-radius: 8px;
+	margin-bottom: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	border-left: 4px solid #334155;
+}
+
+.preflight-item.passed {
+	background: rgba(16, 185, 129, 0.1);
+	color: #6ee7b7;
+	border-left-color: var(--sc-success);
+}
+
+.preflight-item.warning {
+	background: rgba(245, 158, 11, 0.15);
+	color: #fde047;
+	border-left-color: var(--sc-warning);
+}
+
+.preflight-item.critical {
+	background: rgba(239, 68, 68, 0.15);
+	color: #fca5a5;
+	border-left-color: var(--sc-danger);
+}
+
+.preflight-action-area {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	margin-top: 4px;
+}
+
+.input-clean-brand {
+	background: #0f172a !important;
+	border: 1px solid #475569 !important;
+	color: #fff !important;
+	padding: 4px 10px !important;
+	border-radius: 6px !important;
+	font-size: 12px !important;
+	width: 200px;
+}
+
 /* Form Controls */
 .supercraft-field {
 	margin-bottom: 18px;

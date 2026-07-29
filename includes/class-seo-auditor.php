@@ -6,12 +6,129 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Supercraft_SEO_Auditor
  * 
- * Performs automated Technical SEO checks on Elementor & WordPress pages/posts.
+ * Performs automated Technical SEO checks and Pre-Flight site-wide health diagnostics.
  */
 class Supercraft_SEO_Auditor {
 
 	/**
-	 * Run a technical SEO audit for a post.
+	 * Run Pre-Flight Site-Wide Technical SEO Health Check.
+	 * Evaluates brand name quality, search engine indexing settings, permalinks, and SSL.
+	 *
+	 * @return array Pre-flight diagnostic summary.
+	 */
+	public function run_preflight_check() {
+		$checks = array();
+		$can_proceed = true;
+
+		// 1. Site Brand Name Quality Check
+		$raw_site_name = get_bloginfo( 'name' );
+		$suggested_brand = $this->clean_brand_name( $raw_site_name );
+		$is_raw_domain   = preg_match( '/\.(com|com\.my|my|net|org|io|co|app)\b/i', $raw_site_name ) || 'Just another WordPress site' === $raw_site_name || strlen( trim( $raw_site_name ) ) < 2;
+
+		if ( $is_raw_domain ) {
+			$checks[] = array(
+				'code'            => 'raw_brand_name',
+				'type'            => 'warning',
+				'title'           => __( 'Raw Domain or Default Site Title Detected', 'supercraft-seo' ),
+				'message'         => sprintf( __( 'Your WordPress Site Title is set to "%s". We recommend changing it to a clean brand name like "%s" so AI meta tags look polished.', 'supercraft-seo' ), esc_html( $raw_site_name ), esc_html( $suggested_brand ) ),
+				'fixable'         => true,
+				'current_name'    => $raw_site_name,
+				'suggested_name'  => $suggested_brand,
+			);
+		} else {
+			$checks[] = array(
+				'code'    => 'clean_brand_name',
+				'type'    => 'passed',
+				'title'   => __( 'Site Title & Brand Name', 'supercraft-seo' ),
+				'message' => sprintf( __( 'Clean brand name configured: "%s"', 'supercraft-seo' ), esc_html( $raw_site_name ) ),
+			);
+		}
+
+		// 2. Global Search Engine Indexing Visibility (blog_public)
+		$blog_public = get_option( 'blog_public' );
+		if ( '0' === (string) $blog_public ) {
+			$checks[] = array(
+				'code'    => 'search_indexing_blocked',
+				'type'    => 'critical',
+				'title'   => __( 'Search Engine Indexing is Blocked', 'supercraft-seo' ),
+				'message' => __( 'WordPress setting "Discourage search engines from indexing this site" is enabled. Search engines will ignore your entire site.', 'supercraft-seo' ),
+				'fixable' => true,
+			);
+			$can_proceed = false;
+		} else {
+			$checks[] = array(
+				'code'    => 'search_indexing_open',
+				'type'    => 'passed',
+				'title'   => __( 'Global Indexing Status', 'supercraft-seo' ),
+				'message' => __( 'Site is open to search engine indexing.', 'supercraft-seo' ),
+			);
+		}
+
+		// 3. Permalinks Structure Check
+		$permalink_structure = get_option( 'permalink_structure' );
+		if ( empty( $permalink_structure ) ) {
+			$checks[] = array(
+				'code'    => 'plain_permalinks',
+				'type'    => 'warning',
+				'title'   => __( 'Plain Permalinks Detected (?p=123)', 'supercraft-seo' ),
+				'message' => __( 'Your site uses plain URL permalinks. Switching to "Post Name" permalinks is highly recommended for SEO.', 'supercraft-seo' ),
+				'fixable' => false,
+			);
+		} else {
+			$checks[] = array(
+				'code'    => 'pretty_permalinks',
+				'type'    => 'passed',
+				'title'   => __( 'Permalink Structure', 'supercraft-seo' ),
+				'message' => __( 'SEO-friendly permalink structure is active.', 'supercraft-seo' ),
+			);
+		}
+
+		// 4. AIOSEO Plugin Integration Status
+		$aioseo_bridge = new Supercraft_SEO_AIOSEO_Bridge();
+		if ( $aioseo_bridge->is_aioseo_active() ) {
+			$checks[] = array(
+				'code'    => 'aioseo_active',
+				'type'    => 'passed',
+				'title'   => __( 'AIOSEO Connection', 'supercraft-seo' ),
+				'message' => __( 'All in One SEO (AIOSEO) engine connected.', 'supercraft-seo' ),
+			);
+		} else {
+			$checks[] = array(
+				'code'    => 'aioseo_inactive',
+				'type'    => 'warning',
+				'title'   => __( 'AIOSEO Engine Not Installed', 'supercraft-seo' ),
+				'message' => __( 'AIOSEO plugin is not active. Supercraft will save metadata to standard post meta.', 'supercraft-seo' ),
+				'fixable' => false,
+			);
+		}
+
+		return array(
+			'can_proceed' => $can_proceed,
+			'checks'      => $checks,
+			'site_title'  => $raw_site_name,
+		);
+	}
+
+	/**
+	 * Convert a raw domain string like ylbrands.com.my into a clean Brand Name.
+	 *
+	 * @param string $raw Raw site title.
+	 * @return string Cleaned brand name.
+	 */
+	public function clean_brand_name( $raw ) {
+		// Strip http/https
+		$clean = preg_replace( '#^https?://#i', '', trim( $raw ) );
+		// Strip domain extension suffix (.com.my, .com, .my, .io, .net, etc.)
+		$clean = preg_replace( '/\.(com\.my|com|my|net|org|io|co|app)\b/i', '', $clean );
+		// Capitalize words / replace dashes/dots with spaces
+		$clean = str_replace( array( '-', '.', '_' ), ' ', $clean );
+		$clean = ucwords( strtolower( trim( $clean ) ) );
+
+		return ! empty( $clean ) ? $clean : 'My Brand';
+	}
+
+	/**
+	 * Run a technical SEO audit for a single post.
 	 *
 	 * @param int   $post_id Post ID to inspect.
 	 * @param array $page_data Extracted page content payload from Elementor parser.

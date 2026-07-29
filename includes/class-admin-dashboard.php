@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Supercraft_SEO_Admin_Dashboard
  * 
- * Manages WP Admin Menu under Supercraft Parent, Settings UI, Assets enqueuing, and AJAX Endpoints.
+ * Manages WP Admin Menu under Supercraft Parent, Settings UI, Assets enqueuing, and Pre-Flight Health Check AJAX.
  */
 class Supercraft_SEO_Admin_Dashboard {
 
@@ -35,6 +35,9 @@ class Supercraft_SEO_Admin_Dashboard {
 
 		// Register AJAX Actions
 		add_action( 'wp_ajax_supercraft_seo_save_settings', array( $this, 'ajax_save_settings' ) );
+		add_action( 'wp_ajax_supercraft_seo_run_preflight', array( $this, 'ajax_run_preflight' ) );
+		add_action( 'wp_ajax_supercraft_seo_update_site_title', array( $this, 'ajax_update_site_title' ) );
+		add_action( 'wp_ajax_supercraft_seo_update_blog_public', array( $this, 'ajax_update_blog_public' ) );
 		add_action( 'wp_ajax_supercraft_seo_get_posts', array( $this, 'ajax_get_posts' ) );
 		add_action( 'wp_ajax_supercraft_seo_process_single_post', array( $this, 'ajax_process_single_post' ) );
 		add_action( 'wp_ajax_supercraft_seo_fix_image_alts', array( $this, 'ajax_fix_image_alts' ) );
@@ -46,7 +49,6 @@ class Supercraft_SEO_Admin_Dashboard {
 	public function register_menu_page() {
 		global $menu;
 
-		// Search global WordPress menu to find Master Parent slug dynamically
 		$supercraft_parent_slug = '';
 		if ( is_array( $menu ) ) {
 			foreach ( $menu as $item ) {
@@ -58,7 +60,6 @@ class Supercraft_SEO_Admin_Dashboard {
 		}
 
 		if ( $supercraft_parent_slug ) {
-			// Add as submenu under Supercraft Master parent
 			add_submenu_page(
 				$supercraft_parent_slug,
 				__( 'Supercraft Technical SEO', 'supercraft-seo' ),
@@ -68,7 +69,6 @@ class Supercraft_SEO_Admin_Dashboard {
 				array( $this, 'render_dashboard_page' )
 			);
 		} else {
-			// Standalone Mode: Create top-level Supercraft menu
 			add_menu_page(
 				__( 'Supercraft Technical SEO', 'supercraft-seo' ),
 				__( 'Supercraft', 'supercraft-seo' ),
@@ -118,6 +118,7 @@ class Supercraft_SEO_Admin_Dashboard {
 			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
 			'nonce'       => wp_create_nonce( 'supercraft_seo_nonce' ),
 			'isValidated' => Supercraft_SEO_Validation::is_validated(),
+			'siteTitle'   => get_bloginfo( 'name' ),
 			'strings'     => array(
 				'scanning'     => __( 'Scanning & Auto-Fixing...', 'supercraft-seo' ),
 				'complete'     => __( 'Audit & AI Sync Complete!', 'supercraft-seo' ),
@@ -137,6 +138,7 @@ class Supercraft_SEO_Admin_Dashboard {
 		$model          = get_option( 'supercraft_seo_openai_model', 'gpt-4o-mini' );
 		$brand_voice    = get_option( 'supercraft_seo_brand_voice', 'Professional, authoritative, yet engaging' );
 		$aioseo_on      = $this->main->aioseo_bridge->is_aioseo_active();
+		$current_title  = get_bloginfo( 'name' );
 		?>
 		<div class="wrap supercraft-seo-wrap">
 			<!-- Header Banner -->
@@ -223,6 +225,23 @@ class Supercraft_SEO_Admin_Dashboard {
 
 				<!-- Right Column: One-Click Action & Audit Dashboard -->
 				<div class="supercraft-column-action">
+					
+					<!-- Pre-Flight Health Check Card -->
+					<div class="supercraft-card preflight-card">
+						<div class="preflight-header">
+							<h2>🩺 Pre-Flight Site Health Check</h2>
+							<button id="supercraft-run-preflight-btn" class="button button-secondary button-small">
+								<span class="dashicons dashicons-update"></span> Run Pre-Flight Scan
+							</button>
+						</div>
+						<p class="description">Verifies site title quality, search indexing visibility, and permalink structures before launching AI meta generation.</p>
+						
+						<div id="supercraft-preflight-results" class="preflight-list">
+							<div class="preflight-loading">Click "Run Pre-Flight Scan" to check site identity settings.</div>
+						</div>
+					</div>
+
+					<!-- Hero Action Card -->
 					<div class="supercraft-card hero-action-card">
 						<div class="hero-action-header">
 							<h2>⚡ Supercraft One-Click SEO Engine</h2>
@@ -273,6 +292,56 @@ class Supercraft_SEO_Admin_Dashboard {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * AJAX: Run Pre-Flight Site Health Check
+	 */
+	public function ajax_run_preflight() {
+		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
+
+		$res = $this->main->seo_auditor->run_preflight_check();
+		wp_send_json_success( $res );
+	}
+
+	/**
+	 * AJAX: Update Site Title (1-Click Brand Name Fix)
+	 */
+	public function ajax_update_site_title() {
+		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'supercraft-seo' ) ) );
+		}
+
+		$new_title = isset( $_POST['new_title'] ) ? sanitize_text_field( $_POST['new_title'] ) : '';
+		if ( empty( $new_title ) ) {
+			wp_send_json_error( array( 'message' => __( 'Site title cannot be empty.', 'supercraft-seo' ) ) );
+		}
+
+		update_option( 'blogname', $new_title );
+
+		wp_send_json_success( array(
+			'message'   => sprintf( __( 'Site title updated to "%s"!', 'supercraft-seo' ), esc_html( $new_title ) ),
+			'new_title' => $new_title,
+		) );
+	}
+
+	/**
+	 * AJAX: Unblock Search Engine Indexing (blog_public = 1)
+	 */
+	public function ajax_update_blog_public() {
+		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'supercraft-seo' ) ) );
+		}
+
+		update_option( 'blog_public', '1' );
+
+		wp_send_json_success( array(
+			'message' => __( 'Search engine indexing is now open to crawlers!', 'supercraft-seo' ),
+		) );
 	}
 
 	/**

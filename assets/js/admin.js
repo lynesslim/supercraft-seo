@@ -7,11 +7,125 @@
 	var resultsData = [];
 
 	$(document).ready(function () {
-		// Toggle Auth Groups
-		$('#auth_mode').on('change', function () {
-			var mode = $(this).val();
-			$('.auth-field-group').hide();
-			$('#field-group-' + mode).slideDown();
+		// Run Pre-Flight Health Check on Load
+		runPreflightScan();
+
+		$('#supercraft-run-preflight-btn').on('click', function (e) {
+			e.preventDefault();
+			runPreflightScan();
+		});
+
+		// Run Pre-Flight Diagnostic Function
+		function runPreflightScan() {
+			var $container = $('#supercraft-preflight-results');
+			$container.html('<div class="preflight-loading">⏳ Diagnostic scanning site-wide settings...</div>');
+
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_run_preflight',
+					nonce: supercraftSEO.nonce,
+				},
+				success: function (res) {
+					if (res.success && res.data.checks) {
+						renderPreflightResults(res.data);
+					} else {
+						$container.html('<div class="preflight-item warning">⚠️ Failed to load pre-flight diagnostics.</div>');
+					}
+				},
+				error: function () {
+					$container.html('<div class="preflight-item warning">⚠️ Pre-flight request error.</div>');
+				}
+			});
+		}
+
+		// Render Pre-Flight Results List
+		function renderPreflightResults(data) {
+			var $container = $('#supercraft-preflight-results');
+			var html = '';
+
+			data.checks.forEach(function (check) {
+				var itemClass = check.type === 'critical' ? 'critical' : (check.type === 'warning' ? 'warning' : 'passed');
+				var icon = check.type === 'critical' ? '🔴' : (check.type === 'warning' ? '🟡' : '🟢');
+
+				html += '<div class="preflight-item ' + itemClass + '">';
+				html += '<div class="preflight-text">';
+				html += '<strong>' + icon + ' ' + escapeHtml(check.title) + ':</strong> ' + escapeHtml(check.message);
+				html += '</div>';
+
+				// 1-Click Fix for Brand Name
+				if (check.code === 'raw_brand_name' && check.suggested_name) {
+					html += '<div class="preflight-action-area">';
+					html += '<input type="text" class="input-clean-brand" value="' + escapeHtml(check.suggested_name) + '" placeholder="Clean Brand Name" />';
+					html += '<button class="button button-primary button-small btn-fix-site-title">Update Brand Name</button>';
+					html += '</div>';
+				}
+
+				// 1-Click Fix for Search Indexing Blocked
+				if (check.code === 'search_indexing_blocked') {
+					html += '<div class="preflight-action-area">';
+					html += '<button class="button button-primary button-small btn-fix-indexing">Enable Indexing Now</button>';
+					html += '</div>';
+				}
+
+				html += '</div>';
+			});
+
+			$container.html(html);
+		}
+
+		// 1-Click Fix Brand Name Handler
+		$(document).on('click', '.btn-fix-site-title', function (e) {
+			e.preventDefault();
+			var $btn = $(this);
+			var $input = $btn.siblings('.input-clean-brand');
+			var newTitle = $input.val();
+
+			if (!newTitle) return;
+			$btn.text('Updating...').prop('disabled', true);
+
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_update_site_title',
+					nonce: supercraftSEO.nonce,
+					new_title: newTitle,
+				},
+				success: function (res) {
+					if (res.success) {
+						$btn.text('✅ Saved!').css({ background: '#10b981' });
+						runPreflightScan();
+					} else {
+						$btn.text('Failed').css({ background: '#ef4444' });
+					}
+				}
+			});
+		});
+
+		// 1-Click Fix Search Indexing Handler
+		$(document).on('click', '.btn-fix-indexing', function (e) {
+			e.preventDefault();
+			var $btn = $(this);
+			$btn.text('Enabling...').prop('disabled', true);
+
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_update_blog_public',
+					nonce: supercraftSEO.nonce,
+				},
+				success: function (res) {
+					if (res.success) {
+						$btn.text('✅ Indexing Enabled!').css({ background: '#10b981' });
+						runPreflightScan();
+					} else {
+						$btn.text('Failed').css({ background: '#ef4444' });
+					}
+				}
+			});
 		});
 
 		// Save Settings AJAX
@@ -30,10 +144,6 @@
 				data: {
 					action: 'supercraft_seo_save_settings',
 					nonce: supercraftSEO.nonce,
-					auth_mode: $('#auth_mode').val(),
-					superapp_token: $('#superapp_token').val(),
-					superapp_endpoint: $('#superapp_endpoint').val(),
-					openai_api_key: $('#openai_api_key').val(),
 					openai_model: $('#openai_model').val(),
 					brand_voice: $('#brand_voice').val(),
 				},
@@ -93,7 +203,6 @@
 		// Process Queue Sequentially
 		function processNextPost() {
 			if (postQueue.length === 0) {
-				// Complete
 				$('#supercraft-progress-text').text('🎉 All pages processed & synced with AIOSEO!');
 				$('#supercraft-progress-percent').text('100%');
 				$('#supercraft-progress-bar-fill').css('width', '100%');
@@ -176,7 +285,6 @@
 			// Issues & Passed list
 			html += '<ul class="issues-list">';
 			
-			// Issues
 			audit.issues.forEach(function (issue) {
 				var itemClass = issue.type === 'critical' ? 'issue-critical' : 'issue-warning';
 				var icon = issue.type === 'critical' ? '🔴' : '🟡';
@@ -184,7 +292,6 @@
 				html += '<li class="' + itemClass + '">';
 				html += '<span>' + icon + ' <strong>' + escapeHtml(issue.title) + ':</strong> ' + escapeHtml(issue.message) + '</span>';
 
-				// Auto fix button for missing image alts
 				if (issue.code === 'missing_image_alts' && data.seo_data && data.seo_data.suggested_image_alts) {
 					html += '<button class="btn-fix-alt" data-postid="' + data.post_id + '" data-alts=\'' + JSON.stringify(data.seo_data.suggested_image_alts) + '\'>Fix ALTs via AI</button>';
 				}
@@ -192,7 +299,6 @@
 				html += '</li>';
 			});
 
-			// Passed items summary
 			if (audit.passed.length > 0) {
 				html += '<li class="issue-passed">🟢 <strong>Passed Checks:</strong> ' + audit.passed.join(' | ') + '</li>';
 			}
