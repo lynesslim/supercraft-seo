@@ -751,6 +751,22 @@
 	background: #7c3aed;
 }
 
+.btn-fix-meta-title, .btn-fix-meta-desc {
+	background: #6366f1;
+	color: #fff;
+	border: none;
+	padding: 5px 12px;
+	border-radius: 6px;
+	font-size: 11px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.2s ease;
+}
+
+.btn-fix-meta-title:hover, .btn-fix-meta-desc:hover {
+	background: #4f46e5;
+}
+
 .btn-fix-alt {
 	background: #2563eb;
 	color: #fff;

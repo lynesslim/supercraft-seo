@@ -4,6 +4,7 @@
 	var pollInterval = null;
 	var isPolling = false;
 	var currentFixH1PostId = 0;
+	var currentFixMetaPostId = 0;
 
 	$(document).ready(function () {
 		// Run Pre-Flight Health Check on Load
@@ -133,6 +134,69 @@
 						checkQueueStatus();
 					} else {
 						alert(res.data.message || 'Failed to fix H1 headings.');
+					}
+				}
+			});
+		});
+
+		// Meta AI Modal Event Handlers
+		$(document).on('click', '.btn-fix-meta-title, .btn-fix-meta-desc', function () {
+			currentFixMetaPostId = $(this).data('postid');
+			$('#supercraft-meta-modal').fadeIn();
+		});
+
+		$('#btn-meta-modal-cancel').on('click', function () {
+			$('#supercraft-meta-modal').fadeOut();
+		});
+
+		// Fix Single Page Meta AI
+		$('#btn-meta-fix-single').on('click', function () {
+			var $btn = $(this);
+			$btn.text('Fixing via AI...').prop('disabled', true);
+
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_fix_meta',
+					nonce: supercraftSEO.nonce,
+					scope: 'single',
+					post_id: currentFixMetaPostId,
+				},
+				success: function (res) {
+					$btn.text('Fix This Page Only').prop('disabled', false);
+					$('#supercraft-meta-modal').fadeOut();
+					if (res.success) {
+						alert(res.data.message);
+						checkQueueStatus();
+					} else {
+						alert(res.data.message || 'Failed to fix Meta AI.');
+					}
+				}
+			});
+		});
+
+		// Fix All Pages Site-Wide Meta AI
+		$('#btn-meta-fix-all').on('click', function () {
+			var $btn = $(this);
+			$btn.text('Fixing All via AI...').prop('disabled', true);
+
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_fix_meta',
+					nonce: supercraftSEO.nonce,
+					scope: 'all',
+				},
+				success: function (res) {
+					$btn.text('Fix All Pages Site-Wide').prop('disabled', false);
+					$('#supercraft-meta-modal').fadeOut();
+					if (res.success) {
+						alert(res.data.message);
+						checkQueueStatus();
+					} else {
+						alert(res.data.message || 'Failed to fix Meta AI.');
 					}
 				}
 			});
@@ -459,6 +523,14 @@
 
 				if (issue.code === 'missing_h1') {
 					html += '<button class="btn-fix-h1" data-postid="' + data.post_id + '">Fix H1 Tag</button>';
+				}
+
+				if (issue.code === 'meta_title_too_short' || issue.code === 'meta_title_too_long' || issue.code === 'missing_meta_title') {
+					html += '<button class="btn-fix-meta-title" data-postid="' + data.post_id + '">Fix Title via AI</button>';
+				}
+
+				if (issue.code === 'meta_desc_too_short' || issue.code === 'meta_desc_too_long' || issue.code === 'missing_meta_desc') {
+					html += '<button class="btn-fix-meta-desc" data-postid="' + data.post_id + '">Fix Description via AI</button>';
 				}
 
 				if (issue.code === 'missing_image_alts' && data.seo_data && data.seo_data.suggested_image_alts) {

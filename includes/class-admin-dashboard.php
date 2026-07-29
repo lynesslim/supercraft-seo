@@ -48,8 +48,9 @@ class Supercraft_SEO_Admin_Dashboard {
 		add_action( 'wp_ajax_supercraft_seo_stop_bg_queue', array( $this, 'ajax_stop_bg_queue' ) );
 		add_action( 'wp_ajax_supercraft_seo_get_queue_status', array( $this, 'ajax_get_queue_status' ) );
 		
-		// H1 & ALT Auto-Fix AJAX Actions
+		// H1, Meta, & ALT Auto-Fix AJAX Actions
 		add_action( 'wp_ajax_supercraft_seo_fix_h1', array( $this, 'ajax_fix_h1' ) );
+		add_action( 'wp_ajax_supercraft_seo_fix_meta', array( $this, 'ajax_fix_meta' ) );
 		add_action( 'wp_ajax_supercraft_seo_fix_image_alts', array( $this, 'ajax_fix_image_alts' ) );
 	}
 
@@ -381,6 +382,20 @@ class Supercraft_SEO_Admin_Dashboard {
 				</div>
 			</div>
 		</div>
+
+		<!-- Meta AI Fix Scope Modal Dialog -->
+		<div id="supercraft-meta-modal" class="supercraft-modal-overlay" style="display:none;">
+			<div class="supercraft-modal-card">
+				<h3 style="margin-top:0;color:#0f172a;font-size:18px;">⚡ Fix Meta Title & Description via AI</h3>
+				<p style="color:#475569;font-size:14px;line-height:1.5;">Re-generate optimized AI metadata (45-60 char titles, 145-158 char descriptions with CTAs) for <strong>this page only</strong> or <strong>all pages site-wide</strong> with meta warnings?</p>
+				
+				<div class="supercraft-modal-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+					<button type="button" id="btn-meta-fix-single" class="button button-primary">Fix This Page Only</button>
+					<button type="button" id="btn-meta-fix-all" class="button button-secondary">Fix All Pages Site-Wide</button>
+					<button type="button" id="btn-meta-modal-cancel" class="button">Cancel</button>
+				</div>
+			</div>
+		</div>
 		<?php
 	}
 
@@ -451,7 +466,7 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
-	 * AJAX: 1-Click Fix H1 Headings (Single page vs All site-wide)
+	 * AJAX: 1-Click Fix H1 Headings
 	 */
 	public function ajax_fix_h1() {
 		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
@@ -502,6 +517,65 @@ class Supercraft_SEO_Admin_Dashboard {
 			} else {
 				wp_send_json_error( array( 'message' => __( 'Could not find heading widget to promote.', 'supercraft-seo' ) ) );
 			}
+		}
+	}
+
+	/**
+	 * AJAX: 1-Click Fix Meta Title / Description via AI
+	 */
+	public function ajax_fix_meta() {
+		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
+
+		if ( ! Supercraft_SEO_Validation::is_validated() ) {
+			wp_send_json_error( array( 'message' => __( 'License validation required.', 'supercraft-seo' ) ) );
+		}
+
+		$scope   = isset( $_POST['scope'] ) ? sanitize_text_field( $_POST['scope'] ) : 'single';
+		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+
+		$fixed_count = 0;
+
+		if ( 'all' === $scope ) {
+			$all_ids = get_posts( array(
+				'post_type'      => array( 'page', 'post' ),
+				'post_status'    => array( 'publish', 'draft' ),
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+			) );
+
+			foreach ( $all_ids as $id ) {
+				$page_data = $this->main->elementor_parser->get_page_content( $id );
+				$ai_res    = $this->main->openai_service->generate_seo_metadata( $id, $page_data );
+
+				if ( ! is_wp_error( $ai_res ) && ! empty( $ai_res['meta_title'] ) ) {
+					$this->main->aioseo_bridge->save_seo_metadata( $id, $ai_res );
+					$fixed_count++;
+				}
+			}
+
+			wp_send_json_success( array(
+				'message'     => sprintf( __( 'Successfully re-generated optimized AI meta title & description for %d pages site-wide!', 'supercraft-seo' ), $fixed_count ),
+				'fixed_count' => $fixed_count,
+			) );
+		} else {
+			if ( ! $post_id ) {
+				wp_send_json_error( array( 'message' => __( 'Invalid post ID.', 'supercraft-seo' ) ) );
+			}
+
+			$page_data = $this->main->elementor_parser->get_page_content( $post_id );
+			$ai_res    = $this->main->openai_service->generate_seo_metadata( $post_id, $page_data );
+
+			if ( is_wp_error( $ai_res ) ) {
+				wp_send_json_error( array( 'message' => $ai_res->get_error_message() ) );
+			}
+
+			$this->main->aioseo_bridge->save_seo_metadata( $post_id, $ai_res );
+
+			wp_send_json_success( array(
+				'message'  => __( 'AI meta title & description re-generated and synced with AIOSEO!', 'supercraft-seo' ),
+				'post_id'  => $post_id,
+				'seo_data' => $ai_res,
+			) );
 		}
 	}
 
