@@ -401,6 +401,36 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
+	 * Helper: Find WordPress Attachment ID by URL or Filename fallback.
+	 *
+	 * @param string $url Image URL.
+	 * @return int Attachment ID or 0 if not found.
+	 */
+	private function find_attachment_id_by_url( $url ) {
+		$id = attachment_url_to_postid( $url );
+		if ( $id > 0 ) {
+			return $id;
+		}
+
+		$clean_url = strtok( $url, '?' );
+		$id = attachment_url_to_postid( $clean_url );
+		if ( $id > 0 ) {
+			return $id;
+		}
+
+		global $wpdb;
+		$filename = basename( $clean_url );
+		if ( ! empty( $filename ) ) {
+			$found = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND guid LIKE %s LIMIT 1", '%' . $wpdb->esc_like( $filename ) . '%' ) );
+			if ( $found ) {
+				return (int) $found;
+			}
+		}
+
+		return 0;
+	}
+
+	/**
 	 * Helper: Re-audit a single post and update stored background worker state in wp_options.
 	 *
 	 * @param int $post_id Post ID to re-audit.
@@ -743,7 +773,7 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
-	 * AJAX: Fix Image Alt Texts with Live Re-Audit
+	 * AJAX: Fix Image Alt Texts with Robust Attachment Lookup & Live Re-Audit
 	 */
 	public function ajax_fix_image_alts() {
 		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
@@ -762,7 +792,7 @@ class Supercraft_SEO_Admin_Dashboard {
 		$updated_count = 0;
 		foreach ( $alts as $item ) {
 			if ( ! empty( $item['url'] ) && ! empty( $item['alt_text'] ) ) {
-				$attachment_id = attachment_url_to_postid( esc_url_raw( $item['url'] ) );
+				$attachment_id = $this->find_attachment_id_by_url( esc_url_raw( $item['url'] ) );
 				if ( $attachment_id > 0 ) {
 					update_post_meta( $attachment_id, '_wp_attachment_image_alt', sanitize_text_field( $item['alt_text'] ) );
 					$updated_count++;
