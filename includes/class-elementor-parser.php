@@ -8,6 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * 
  * Parses Elementor page builder JSON payloads stored in `_elementor_data` post meta.
  * Extracts clean, structured copy, headings, body text, and image metadata for SEO processing.
+ * Supports multibyte / CJK (Chinese, Japanese, Korean) word counting.
  */
 class Supercraft_SEO_Elementor_Parser {
 
@@ -47,7 +48,7 @@ class Supercraft_SEO_Elementor_Parser {
 
 		// Fallback to post_content if not built with Elementor or if Elementor data is empty
 		if ( empty( $parsed['paragraphs'] ) && empty( $parsed['headings']['h1'] ) && empty( $parsed['headings']['h2'] ) ) {
-			$raw_content = get_post_field( $post_content = 'post_content', $post_id );
+			$raw_content = get_post_field( 'post_content', $post_id );
 			if ( ! empty( $raw_content ) ) {
 				$this->parse_raw_html_fallback( $raw_content, $parsed );
 			}
@@ -68,9 +69,31 @@ class Supercraft_SEO_Elementor_Parser {
 		}
 
 		$parsed['raw_text']   = implode( "\n\n", array_filter( array_map( 'trim', $text_parts ) ) );
-		$parsed['word_count'] = str_word_count( wp_strip_all_tags( $parsed['raw_text'] ) );
+		$parsed['word_count'] = $this->count_words( $parsed['raw_text'] );
 
 		return $parsed;
+	}
+
+	/**
+	 * Multibyte & CJK (Chinese, Japanese, Korean) Aware Word Count Helper.
+	 *
+	 * @param string $text Text to count.
+	 * @return int Total word / character count.
+	 */
+	public function count_words( $text ) {
+		$clean = wp_strip_all_tags( $text );
+		if ( empty( trim( $clean ) ) ) {
+			return 0;
+		}
+
+		// 1. Count CJK characters (each Chinese/Japanese/Korean character = 1 word unit)
+		$cjk_count = preg_match_all( '/[\x{4e00}-\x{9fa5}\x{3040}-\x{30ff}\x{3130}-\x{318f}]/u', $clean );
+
+		// 2. Remove CJK characters to accurately count Latin / ASCII words separately
+		$latin_text  = preg_replace( '/[\x{4e00}-\x{9fa5}\x{3040}-\x{30ff}\x{3130}-\x{318f}]/u', ' ', $clean );
+		$latin_count = str_word_count( $latin_text );
+
+		return $cjk_count + $latin_count;
 	}
 
 	/**
@@ -183,6 +206,46 @@ class Supercraft_SEO_Elementor_Parser {
 				}
 				break;
 
+			case 'icon-list':
+				if ( ! empty( $settings['icon_list'] ) && is_array( $settings['icon_list'] ) ) {
+					foreach ( $settings['icon_list'] as $item ) {
+						if ( ! empty( $item['text'] ) ) {
+							$parsed['paragraphs'][] = wp_strip_all_tags( $item['text'] );
+						}
+					}
+				}
+				break;
+
+			case 'accordion':
+			case 'toggle':
+			case 'tabs':
+				if ( ! empty( $settings['tabs'] ) && is_array( $settings['tabs'] ) ) {
+					foreach ( $settings['tabs'] as $tab ) {
+						if ( ! empty( $tab['tab_title'] ) ) {
+							$parsed['headings']['h3'][] = array(
+								'text' => wp_strip_all_tags( $tab['tab_title'] ),
+								'tag'  => 'h3',
+							);
+						}
+						if ( ! empty( $tab['tab_content'] ) ) {
+							$parsed['paragraphs'][] = wp_strip_all_tags( $tab['tab_content'] );
+						}
+					}
+				}
+				break;
+
+			case 'testimonial':
+				if ( ! empty( $settings['testimonial_content'] ) ) {
+					$parsed['paragraphs'][] = wp_strip_all_tags( $settings['testimonial_content'] );
+				}
+				break;
+
+			case 'button':
+				if ( ! empty( $settings['text'] ) ) {
+					$parsed['paragraphs'][] = wp_strip_all_tags( $settings['text'] );
+				}
+				break;
+
 			default:
 				// Generic fallback: check common title/text keys in custom or third-party widgets
 				if ( ! empty( $settings['title'] ) && is_string( $settings['title'] ) ) {
@@ -205,7 +268,6 @@ class Supercraft_SEO_Elementor_Parser {
 	 * @param array  &$parsed Target parsed result reference.
 	 */
 	private function parse_raw_html_fallback( $html, &$parsed ) {
-		// Extract Headings
 		if ( preg_match_all( '/<h([1-4])\b[^>]*>(.*?)<\/h\1>/is', $html, $matches, PREG_SET_ORDER ) ) {
 			foreach ( $matches as $match ) {
 				$tag_num = 'h' . $match[1];
@@ -219,7 +281,6 @@ class Supercraft_SEO_Elementor_Parser {
 			}
 		}
 
-		// Extract Paragraphs
 		if ( preg_match_all( '/<p\b[^>]*>(.*?)<\/p>/is', $html, $matches ) ) {
 			foreach ( $matches[1] as $p_text ) {
 				$clean = wp_strip_all_tags( $p_text );
@@ -229,7 +290,6 @@ class Supercraft_SEO_Elementor_Parser {
 			}
 		}
 
-		// Extract Images
 		if ( preg_match_all( '/<img\b[^>]+src=["\']([^"\']+)["\'][^>]*>/i', $html, $img_matches, PREG_SET_ORDER ) ) {
 			foreach ( $img_matches as $img ) {
 				$url = esc_url_raw( $img[1] );
