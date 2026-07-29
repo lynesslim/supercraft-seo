@@ -1,0 +1,431 @@
+/* ==========================================================================
+   Supercraft Technical SEO Plugin - Admin Stylesheet
+   ========================================================================== */
+
+:root {
+	--sc-bg-dark: #0f172a;
+	--sc-card-bg: #1e293b;
+	--sc-card-border: #334155;
+	--sc-text-main: #f8fafc;
+	--sc-text-muted: #94a3b8;
+	--sc-accent: #6366f1;
+	--sc-accent-hover: #4f46e5;
+	--sc-gradient-primary: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+	--sc-gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+	--sc-success: #10b981;
+	--sc-warning: #f59e0b;
+	--sc-danger: #ef4444;
+	--sc-radius: 12px;
+	--sc-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+}
+
+.supercraft-seo-wrap {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+	max-width: 1350px;
+	margin: 20px auto 40px;
+	color: var(--sc-text-main);
+}
+
+/* Header Card */
+.supercraft-header-card {
+	background: var(--sc-card-bg);
+	border: 1px solid var(--sc-card-border);
+	border-radius: var(--sc-radius);
+	padding: 28px 36px;
+	box-shadow: var(--sc-shadow);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 24px;
+	background-image: radial-gradient(circle at 90% 10%, rgba(99, 102, 241, 0.15), transparent 40%);
+}
+
+.supercraft-logo-badge {
+	display: inline-block;
+	background: var(--sc-gradient-primary);
+	color: #fff;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 1.5px;
+	padding: 4px 12px;
+	border-radius: 20px;
+	margin-bottom: 8px;
+	text-transform: uppercase;
+}
+
+.supercraft-header-card h1 {
+	color: #fff;
+	font-size: 26px;
+	font-weight: 700;
+	margin: 0 0 6px 0;
+	padding: 0;
+}
+
+.supercraft-header-card p {
+	color: var(--sc-text-muted);
+	font-size: 14px;
+	margin: 0;
+	max-width: 750px;
+}
+
+.supercraft-status-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	font-weight: 600;
+	padding: 8px 16px;
+	border-radius: 30px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.supercraft-status-badge.active {
+	background: rgba(16, 185, 129, 0.15);
+	color: #34d399;
+	border-color: rgba(16, 185, 129, 0.3);
+}
+
+.supercraft-status-badge.inactive {
+	background: rgba(245, 158, 11, 0.15);
+	color: #fbbf24;
+	border-color: rgba(245, 158, 11, 0.3);
+}
+
+.status-indicator {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: currentColor;
+	box-shadow: 0 0 8px currentColor;
+}
+
+/* Dashboard Grid Layout */
+.supercraft-dashboard-grid {
+	display: grid;
+	grid-template-columns: 380px 1fr;
+	gap: 24px;
+}
+
+/* Cards System */
+.supercraft-card {
+	background: var(--sc-card-bg);
+	border: 1px solid var(--sc-card-border);
+	border-radius: var(--sc-radius);
+	padding: 24px;
+	box-shadow: var(--sc-shadow);
+	margin-bottom: 24px;
+}
+
+.supercraft-card h2 {
+	color: #fff;
+	font-size: 18px;
+	font-weight: 600;
+	margin-top: 0;
+	margin-bottom: 18px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--sc-card-border);
+}
+
+/* Form Controls */
+.supercraft-field {
+	margin-bottom: 18px;
+}
+
+.supercraft-field label {
+	display: block;
+	color: var(--sc-text-main);
+	font-size: 13px;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.supercraft-field input[type="text"],
+.supercraft-field input[type="password"],
+.supercraft-field select,
+.supercraft-field textarea {
+	width: 100%;
+	background: #0f172a;
+	border: 1px solid #334155;
+	border-radius: 8px;
+	color: #fff;
+	padding: 10px 14px;
+	font-size: 13px;
+	box-sizing: border-box;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.supercraft-field input:focus,
+.supercraft-field select:focus,
+.supercraft-field textarea:focus {
+	border-color: var(--sc-accent);
+	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+	outline: none;
+}
+
+.supercraft-field .description {
+	color: var(--sc-text-muted);
+	font-size: 12px;
+	margin-top: 4px;
+}
+
+.supercraft-btn-save {
+	background: var(--sc-gradient-primary) !important;
+	border: none !important;
+	color: #fff !important;
+	font-weight: 600 !important;
+	padding: 8px 20px !important;
+	border-radius: 8px !important;
+	cursor: pointer;
+	transition: opacity 0.2s ease;
+}
+
+.supercraft-btn-save:hover {
+	opacity: 0.9;
+}
+
+/* Info Card */
+.supercraft-feature-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.supercraft-feature-list li {
+	font-size: 13px;
+	color: var(--sc-text-muted);
+	margin-bottom: 10px;
+	line-height: 1.5;
+}
+
+.supercraft-feature-list li strong {
+	color: #fff;
+}
+
+/* Hero Action Card */
+.hero-action-card {
+	background: linear-gradient(135deg, #1e1b4b 0%, #1e293b 100%);
+	border: 1px solid rgba(99, 102, 241, 0.3);
+	text-align: center;
+	padding: 36px 24px;
+}
+
+.hero-action-header h2 {
+	border: none;
+	font-size: 24px;
+	margin-bottom: 8px;
+}
+
+.hero-action-header p {
+	color: var(--sc-text-muted);
+	font-size: 14px;
+	margin-bottom: 24px;
+}
+
+.supercraft-btn-launch {
+	background: var(--sc-gradient-primary);
+	color: #fff;
+	font-size: 16px;
+	font-weight: 700;
+	padding: 16px 36px;
+	border: none;
+	border-radius: 12px;
+	cursor: pointer;
+	box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.supercraft-btn-launch:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 14px 28px -5px rgba(99, 102, 241, 0.6);
+}
+
+.supercraft-btn-launch .dashicons {
+	font-size: 20px;
+	width: 20px;
+	height: 20px;
+}
+
+/* Live Progress Bar */
+.supercraft-progress-wrapper {
+	margin-top: 24px;
+	background: #0f172a;
+	border-radius: 10px;
+	padding: 16px;
+	border: 1px solid #334155;
+	text-align: left;
+}
+
+.supercraft-progress-header {
+	display: flex;
+	justify-content: space-between;
+	font-size: 13px;
+	font-weight: 600;
+	color: #fff;
+	margin-bottom: 10px;
+}
+
+.supercraft-progress-bar-track {
+	height: 10px;
+	background: #1e293b;
+	border-radius: 5px;
+	overflow: hidden;
+}
+
+.supercraft-progress-bar-fill {
+	height: 100%;
+	background: var(--sc-gradient-primary);
+	transition: width 0.3s ease;
+}
+
+/* Results & Filter Pills */
+.results-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20px;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.results-header h3 {
+	margin: 0;
+	color: #fff;
+	font-size: 18px;
+}
+
+.results-filter-pills {
+	display: flex;
+	gap: 8px;
+}
+
+.pill-btn {
+	background: #0f172a;
+	border: 1px solid #334155;
+	color: var(--sc-text-muted);
+	padding: 6px 14px;
+	border-radius: 20px;
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.pill-btn.active, .pill-btn:hover {
+	background: #334155;
+	color: #fff;
+}
+
+.pill-fixed.active { border-color: var(--sc-success); color: var(--sc-success); }
+.pill-warning.active { border-color: var(--sc-warning); color: var(--sc-warning); }
+.pill-critical.active { border-color: var(--sc-danger); color: var(--sc-danger); }
+
+/* Audit Result Cards */
+.audit-item-card {
+	background: #0f172a;
+	border: 1px solid #334155;
+	border-radius: 10px;
+	padding: 18px;
+	margin-bottom: 14px;
+	transition: border-color 0.2s ease;
+}
+
+.audit-item-card:hover {
+	border-color: #475569;
+}
+
+.audit-item-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 12px;
+}
+
+.audit-item-title-area {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.audit-item-title-area h4 {
+	margin: 0;
+	color: #fff;
+	font-size: 16px;
+}
+
+.score-badge {
+	font-weight: 800;
+	font-size: 12px;
+	padding: 4px 10px;
+	border-radius: 6px;
+}
+
+.score-badge.high { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.score-badge.medium { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.score-badge.low { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+.seo-meta-preview {
+	background: #1e293b;
+	border-radius: 8px;
+	padding: 12px 16px;
+	margin-bottom: 12px;
+	font-size: 13px;
+	border-left: 3px solid var(--sc-accent);
+}
+
+.seo-meta-preview .preview-title {
+	color: #818cf8;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.seo-meta-preview .preview-desc {
+	color: var(--sc-text-muted);
+}
+
+.seo-meta-preview .preview-kw {
+	display: inline-block;
+	background: rgba(99, 102, 241, 0.15);
+	color: #a5b4fc;
+	font-size: 11px;
+	padding: 2px 8px;
+	border-radius: 4px;
+	margin-top: 6px;
+}
+
+.issues-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.issues-list li {
+	font-size: 13px;
+	padding: 8px 12px;
+	border-radius: 6px;
+	margin-bottom: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.issues-list li.issue-critical { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+.issues-list li.issue-warning { background: rgba(245, 158, 11, 0.15); color: #fde047; }
+.issues-list li.issue-passed { background: rgba(16, 185, 129, 0.1); color: #6ee7b7; }
+
+.btn-fix-alt {
+	background: #3b82f6;
+	color: #fff;
+	border: none;
+	padding: 4px 10px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.btn-fix-alt:hover {
+	background: #2563eb;
+}
