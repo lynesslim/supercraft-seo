@@ -16,6 +16,64 @@
 			runPreflightScan();
 		});
 
+		// Target Mode Radio Toggle
+		$('input[name="target_mode"]').on('change', function () {
+			var mode = $(this).val();
+			if (mode === 'selected') {
+				$('#page-picker-container').slideDown();
+				updateLaunchButtonText();
+			} else {
+				$('#page-picker-container').slideUp();
+				$('#launch-btn-text').text('Run One-Click Technical SEO (All Pages)');
+			}
+		});
+
+		// Page Item Checkbox Change
+		$(document).on('change', '.page-item-checkbox', function () {
+			updateLaunchButtonText();
+		});
+
+		// Select All Pages Button
+		$('#btn-select-all-pages').on('click', function () {
+			$('.page-item-checkbox:visible').prop('checked', true);
+			updateLaunchButtonText();
+		});
+
+		// Deselect All Pages Button
+		$('#btn-deselect-all-pages').on('click', function () {
+			$('.page-item-checkbox').prop('checked', false);
+			updateLaunchButtonText();
+		});
+
+		// Search Filter Input
+		$('#page-search-input').on('keyup input', function () {
+			var query = $(this).val().toLowerCase().trim();
+			$('.page-checkbox-item').each(function () {
+				var title = $(this).data('title');
+				if (!query || title.indexOf(query) !== -1) {
+					$(this).show();
+				} else {
+					$(this).hide();
+				}
+			});
+		});
+
+		function updateLaunchButtonText() {
+			var mode = $('input[name="target_mode"]:checked').val();
+			if (mode === 'selected') {
+				var count = $('.page-item-checkbox:checked').length;
+				if (count === 0) {
+					$('#launch-btn-text').text('Select Pages to Run Engine');
+				} else if (count === 1) {
+					$('#launch-btn-text').text('Run One-Click Technical SEO (1 Page Selected)');
+				} else {
+					$('#launch-btn-text').text('Run One-Click Technical SEO (' + count + ' Pages Selected)');
+				}
+			} else {
+				$('#launch-btn-text').text('Run One-Click Technical SEO (All Pages)');
+			}
+		}
+
 		// Run Pre-Flight Diagnostic Function
 		function runPreflightScan() {
 			var $container = $('#supercraft-preflight-results');
@@ -130,19 +188,39 @@
 		// Start Server Background Queue Trigger
 		$('#supercraft-start-oneclick').on('click', function () {
 			var $btn = $(this);
+			var mode = $('input[name="target_mode"]:checked').val();
+			var selectedIds = [];
+
+			if (mode === 'selected') {
+				$('.page-item-checkbox:checked').each(function () {
+					selectedIds.push($(this).val());
+				});
+
+				if (selectedIds.length === 0) {
+					alert('Please select at least one page to process.');
+					return;
+				}
+			}
+
 			$btn.prop('disabled', true).addClass('processing');
 			$('#supercraft-stop-bg').show();
 			$('#supercraft-progress-container').slideDown();
 			$('#supercraft-results-card').slideDown();
 			$('#supercraft-audit-results').html('');
 
+			var requestData = {
+				action: 'supercraft_seo_start_bg_queue',
+				nonce: supercraftSEO.nonce,
+			};
+
+			if (mode === 'selected' && selectedIds.length > 0) {
+				requestData.post_ids = selectedIds;
+			}
+
 			$.ajax({
 				url: supercraftSEO.ajaxUrl,
 				type: 'POST',
-				data: {
-					action: 'supercraft_seo_start_bg_queue',
-					nonce: supercraftSEO.nonce,
-				},
+				data: requestData,
 				success: function (res) {
 					if (res.success) {
 						startPolling();
@@ -232,7 +310,7 @@
 							}
 						} else if (state.status === 'completed') {
 							stopPolling();
-							$('#supercraft-progress-text').text('🎉 All pages processed & synced with AIOSEO!');
+							$('#supercraft-progress-text').text('🎉 All selected pages processed & synced with AIOSEO!');
 							$('#supercraft-progress-percent').text('100%');
 							$('#supercraft-progress-bar-fill').css('width', '100%');
 							$('#supercraft-start-oneclick').prop('disabled', false).removeClass('processing');
@@ -284,9 +362,9 @@
 			
 			html += '<div class="audit-item-header">';
 			html += '<div class="audit-item-title-area">';
-			html += '<h4><a href="' + data.permalink + '" target="_blank" style="color:#fff;text-decoration:none;">' + escapeHtml(data.title) + '</a></h4>';
+			html += '<h4><a href="' + data.permalink + '" target="_blank" style="color:#0f172a;text-decoration:none;">' + escapeHtml(data.title) + '</a></h4>';
 			if (data.is_elementor) {
-				html += '<span style="font-size:10px;background:#334155;color:#94a3b8;padding:2px 6px;border-radius:4px;">Elementor</span>';
+				html += '<span style="font-size:10px;background:#e0e7ff;color:#3730a3;padding:2px 6px;border-radius:4px;font-weight:600;">Elementor</span>';
 			}
 			html += '</div>';
 			html += '<div class="score-badge ' + scoreClass + '">SEO Score: ' + score + '/100</div>';
@@ -301,7 +379,7 @@
 				}
 				html += '</div>';
 			} else if (data.openai_error) {
-				html += '<div class="seo-meta-preview" style="border-left-color:#ef4444;color:#fca5a5;">';
+				html += '<div class="seo-meta-preview" style="border-left-color:#ef4444;color:#991b1b;background:#fef2f2;">';
 				html += '⚠️ AI Meta Generation Skipped: ' + escapeHtml(data.openai_error);
 				html += '</div>';
 			}
@@ -340,7 +418,7 @@
 			var $msg = $form.find('.supercraft-save-msg');
 
 			$btn.prop('disabled', true);
-			$msg.text('Saving...').css({ color: '#94a3b8' }).show();
+			$msg.text('Saving...').css({ color: '#64748b' }).show();
 
 			$.ajax({
 				url: supercraftSEO.ajaxUrl,
@@ -354,15 +432,15 @@
 				success: function (res) {
 					$btn.prop('disabled', false);
 					if (res.success) {
-						$msg.text(res.data.message).css({ color: '#34d399' });
+						$msg.text(res.data.message).css({ color: '#10b981' });
 						setTimeout(function () { $msg.fadeOut(); }, 3000);
 					} else {
-						$msg.text(res.data.message || 'Error saving settings').css({ color: '#f87171' });
+						$msg.text(res.data.message || 'Error saving settings').css({ color: '#ef4444' });
 					}
 				},
 				error: function () {
 					$btn.prop('disabled', false);
-					$msg.text('Network error').css({ color: '#f87171' });
+					$msg.text('Network error').css({ color: '#ef4444' });
 				}
 			});
 		});

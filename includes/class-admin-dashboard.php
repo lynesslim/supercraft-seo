@@ -153,6 +153,15 @@ class Supercraft_SEO_Admin_Dashboard {
 		$embed_code     = Supercraft_SEO_Validation::get_embed_code();
 		$model          = get_option( 'supercraft_seo_openai_model', 'gpt-4o-mini' );
 		$brand_voice    = get_option( 'supercraft_seo_brand_voice', 'Professional, authoritative, yet engaging' );
+
+		// Fetch available pages & posts for manual page selection list
+		$available_posts = get_posts( array(
+			'post_type'      => array( 'page', 'post' ),
+			'post_status'    => array( 'publish', 'draft' ),
+			'posts_per_page' => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+		) );
 		?>
 		<div class="wrap supercraft-seo-wrap">
 			<!-- Header Banner -->
@@ -255,17 +264,65 @@ class Supercraft_SEO_Admin_Dashboard {
 						</div>
 					</div>
 
-					<!-- Hero Action Card -->
+					<!-- Hero Action & Target Selection Card -->
 					<div class="supercraft-card hero-action-card">
 						<div class="hero-action-header">
 							<h2>⚡ Server Background Technical SEO Engine</h2>
 							<p>Runs in the background on your server. You can freely navigate to other pages or close your browser while it works.</p>
 						</div>
 
-						<div class="hero-action-buttons" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+						<!-- Target Selection Radio Controls -->
+						<div class="target-selection-box">
+							<div class="target-selection-label">🎯 Target Selection Scope:</div>
+							<div class="target-radio-group">
+								<label class="target-radio-label">
+									<input type="radio" name="target_mode" value="all" checked />
+									<span><strong>All Pages & Posts</strong> (Entire Site)</span>
+								</label>
+								<label class="target-radio-label">
+									<input type="radio" name="target_mode" value="selected" />
+									<span><strong>Select Specific Pages / Posts</strong></span>
+								</label>
+							</div>
+						</div>
+
+						<!-- Page Picker Checklist Container (Shown when "selected" mode is active) -->
+						<div id="page-picker-container" class="page-picker-wrapper" style="display: none;">
+							<div class="page-picker-toolbar">
+								<input type="text" id="page-search-input" placeholder="🔍 Filter pages by title..." class="page-search-field" />
+								<div class="page-picker-actions">
+									<button type="button" id="btn-select-all-pages" class="button button-small">Select All</button>
+									<button type="button" id="btn-deselect-all-pages" class="button button-small">Deselect All</button>
+								</div>
+							</div>
+
+							<div class="page-checklist-scroll">
+								<?php if ( ! empty( $available_posts ) ) : ?>
+									<?php foreach ( $available_posts as $post_obj ) : ?>
+										<?php
+										$is_elem = get_post_meta( $post_obj->ID, '_elementor_edit_mode', true );
+										?>
+										<label class="page-checkbox-item" data-title="<?php echo esc_attr( strtolower( $post_obj->post_title ) ); ?>">
+											<input type="checkbox" name="selected_post_ids[]" value="<?php echo esc_attr( $post_obj->ID ); ?>" class="page-item-checkbox" />
+											<span class="page-item-title"><?php echo esc_html( $post_obj->post_title ); ?></span>
+											<span class="page-item-meta">
+												<span class="page-type-tag"><?php echo esc_html( strtoupper( $post_obj->post_type ) ); ?></span>
+												<?php if ( 'builder' === $is_elem ) : ?>
+													<span class="elementor-tag">Elementor</span>
+												<?php endif; ?>
+											</span>
+										</label>
+									<?php endforeach; ?>
+								<?php else : ?>
+									<div style="padding:12px;color:#64748b;font-size:13px;">No pages or posts found.</div>
+								<?php endif; ?>
+							</div>
+						</div>
+
+						<div class="hero-action-buttons" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px;">
 							<?php if ( $is_validated ) : ?>
 								<button id="supercraft-start-oneclick" class="supercraft-btn-launch">
-									<span class="dashicons dashicons-lightning"></span> Run One-Click Technical SEO (Server Background)
+									<span class="dashicons dashicons-lightning"></span> <span id="launch-btn-text">Run One-Click Technical SEO (All Pages)</span>
 								</button>
 								<button id="supercraft-stop-bg" class="supercraft-btn-stop" style="display:none;">
 									<span class="dashicons dashicons-no-alt"></span> 🛑 Stop Background Process
@@ -321,7 +378,7 @@ class Supercraft_SEO_Admin_Dashboard {
 	}
 
 	/**
-	 * AJAX: Start Background Queue
+	 * AJAX: Start Background Queue (supports custom post_ids selection)
 	 */
 	public function ajax_start_bg_queue() {
 		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
@@ -330,17 +387,21 @@ class Supercraft_SEO_Admin_Dashboard {
 			wp_send_json_error( array( 'message' => __( 'License validation required.', 'supercraft-seo' ) ) );
 		}
 
-		$query_args = array(
-			'post_type'      => array( 'page', 'post' ),
-			'post_status'    => array( 'publish', 'draft' ),
-			'posts_per_page' => -1,
-			'fields'         => 'ids',
-		);
-
-		$post_ids = get_posts( $query_args );
+		$post_ids = array();
+		if ( ! empty( $_POST['post_ids'] ) && is_array( $_POST['post_ids'] ) ) {
+			$post_ids = array_values( array_map( 'absint', $_POST['post_ids'] ) );
+		} else {
+			$query_args = array(
+				'post_type'      => array( 'page', 'post' ),
+				'post_status'    => array( 'publish', 'draft' ),
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+			);
+			$post_ids = get_posts( $query_args );
+		}
 
 		if ( empty( $post_ids ) ) {
-			wp_send_json_error( array( 'message' => __( 'No pages or posts found to process.', 'supercraft-seo' ) ) );
+			wp_send_json_error( array( 'message' => __( 'No pages or posts selected to process.', 'supercraft-seo' ) ) );
 		}
 
 		$state = $this->main->background_worker->start_queue( $post_ids );

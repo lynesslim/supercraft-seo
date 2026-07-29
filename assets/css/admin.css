@@ -168,6 +168,144 @@
 	border-bottom: 1px solid #f1f5f9;
 }
 
+/* Target Selection & Page Picker Styles */
+.target-selection-box {
+	background: #ffffff;
+	border: 1px solid #c7d2fe;
+	border-radius: 10px;
+	padding: 16px 20px;
+	margin-bottom: 16px;
+	text-align: left;
+}
+
+.target-selection-label {
+	font-size: 13px;
+	font-weight: 700;
+	color: #1e1b4b;
+	margin-bottom: 10px;
+}
+
+.target-radio-group {
+	display: flex;
+	gap: 24px;
+	flex-wrap: wrap;
+}
+
+.target-radio-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	color: #334155;
+	cursor: pointer;
+}
+
+.target-radio-label input[type="radio"] {
+	accent-color: #6366f1;
+	margin: 0;
+}
+
+.page-picker-wrapper {
+	background: #ffffff;
+	border: 1px solid #cbd5e1;
+	border-radius: 10px;
+	padding: 16px;
+	margin-bottom: 16px;
+	text-align: left;
+	box-shadow: var(--sc-shadow-sm);
+}
+
+.page-picker-toolbar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.page-search-field {
+	background: #f8fafc !important;
+	border: 1px solid #cbd5e1 !important;
+	color: #0f172a !important;
+	padding: 7px 12px !important;
+	border-radius: 6px !important;
+	font-size: 13px !important;
+	flex-grow: 1;
+}
+
+.page-search-field:focus {
+	border-color: #6366f1 !important;
+	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+.page-picker-actions {
+	display: flex;
+	gap: 6px;
+}
+
+.page-checklist-scroll {
+	max-height: 220px;
+	overflow-y: auto;
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
+	background: #f8fafc;
+	padding: 6px;
+}
+
+.page-checkbox-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	border-radius: 6px;
+	background: #ffffff;
+	margin-bottom: 4px;
+	border: 1px solid #f1f5f9;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.page-checkbox-item:hover {
+	background: #eef2ff;
+	border-color: #c7d2fe;
+}
+
+.page-checkbox-item input[type="checkbox"] {
+	accent-color: #6366f1;
+	margin-right: 10px;
+}
+
+.page-item-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: #0f172a;
+	flex-grow: 1;
+}
+
+.page-item-meta {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.page-type-tag {
+	font-size: 10px;
+	font-weight: 700;
+	color: #64748b;
+	background: #f1f5f9;
+	padding: 2px 6px;
+	border-radius: 4px;
+}
+
+.elementor-tag {
+	font-size: 10px;
+	font-weight: 700;
+	color: #4338ca;
+	background: #e0e7ff;
+	padding: 2px 6px;
+	border-radius: 4px;
+}
+
 /* Pre-Flight Card Styles */
 .preflight-card {
 	background: #ffffff;
