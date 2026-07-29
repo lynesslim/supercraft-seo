@@ -42,18 +42,25 @@ class Supercraft_SEO_OpenAI {
 		$site_name   = get_bloginfo( 'name' );
 		$embed_code  = Supercraft_SEO_Validation::get_embed_code();
 
-		// Prepare page text summary
-		$page_title = $page_data['title'];
-		$content    = wp_strip_all_tags( $page_data['raw_text'] );
+		// Prepare page text summary safely
+		$page_title = isset( $page_data['title'] ) ? $page_data['title'] : '';
+		
+		if ( ! empty( $page_data['raw_text'] ) ) {
+			$content = wp_strip_all_tags( $page_data['raw_text'] );
+		} else {
+			$headings_flat = isset( $page_data['headings'] ) ? $this->flatten_headings( $page_data['headings'] ) : array();
+			$paragraphs    = isset( $page_data['paragraphs'] ) ? $page_data['paragraphs'] : array();
+			$content       = implode( "\n\n", array_merge( $headings_flat, $paragraphs ) );
+		}
 		
 		if ( strlen( $content ) > 8000 ) {
 			$content = substr( $content, 0, 8000 ) . '... [content truncated]';
 		}
 
 		$missing_alts = array();
-		if ( ! empty( $page_data['images'] ) ) {
+		if ( ! empty( $page_data['images'] ) && is_array( $page_data['images'] ) ) {
 			foreach ( $page_data['images'] as $img ) {
-				if ( empty( $img['alt'] ) && ! empty( $img['url'] ) ) {
+				if ( is_array( $img ) && empty( $img['alt'] ) && ! empty( $img['url'] ) ) {
 					$missing_alts[] = $img['url'];
 				}
 			}
@@ -97,50 +104,68 @@ class Supercraft_SEO_OpenAI {
 
 		if ( 200 === $code ) {
 			$json = json_decode( $raw, true );
-			if ( isset( $json['seo_data'] ) ) {
+			if ( isset( $json['seo_data'] ) && is_array( $json['seo_data'] ) ) {
 				return $json['seo_data'];
 			}
-			if ( is_array( $json ) && isset( $json['meta_title'] ) ) {
+			if ( is_array( $json ) && ( isset( $json['meta_title'] ) || isset( $json['title'] ) ) ) {
 				return $json;
 			}
 		}
 
-		// Fallback: Check if direct OpenAI key exists if Superapp endpoint returns non-200
-		$direct_key = get_option( 'supercraft_seo_openai_api_key', '' );
-		if ( ! empty( $direct_key ) ) {
-			return $this->call_openai_direct( $payload, $direct_key, $model );
-		}
-
 		return new WP_Error(
-			'superapp_api_error',
-			sprintf( __( 'Supercraft Server Response (%d): %s', 'supercraft-seo' ), $code, esc_html( $raw ) )
+			'openai_generation_failed',
+			sprintf( __( 'AI Meta Generation Endpoint Error (HTTP %d): %s', 'supercraft-seo' ), $code, esc_html( substr( $raw, 0, 300 ) ) )
 		);
 	}
 
 	/**
-	 * Direct Fallback call to OpenAI if direct API key is set
+	 * Helper: Flatten all extracted heading strings into a single array.
+	 *
+	 * @param array $headings Headings tree.
+	 * @return array Array of heading texts.
+	 */
+	private function flatten_headings( $headings ) {
+		$flat = array();
+		if ( is_array( $headings ) ) {
+			foreach ( $headings as $tag => $items ) {
+				if ( is_array( $items ) ) {
+					foreach ( $items as $item ) {
+						if ( is_array( $item ) && ! empty( $item['text'] ) ) {
+							$flat[] = $item['text'];
+						}
+					}
+				}
+			}
+		}
+		return $flat;
+	}
+
+	/**
+	 * Direct OpenAI Fallback Call
+	 *
+	 * @param array  $payload Prepared payload.
+	 * @param string $api_key Direct API key.
+	 * @param string $model Model.
+	 * @return array|WP_Error SEO Data or WP_Error.
 	 */
 	private function call_openai_direct( $payload, $api_key, $model ) {
-		$system_prompt = "You are an elite Technical SEO Specialist. Write optimized SEO meta tags in JSON format matching keys: meta_title, meta_description, focus_keyword, secondary_keywords (array), og_title, og_description, suggested_image_alts (array of {url, alt_text}). Tone: {$payload['brand_voice']}.";
-
-		$user_prompt = "Page Title: {$payload['page_title']}\nSite: {$payload['site_name']}\nContent:\n{$payload['content']}\nMissing ALTs: " . json_encode( $payload['missing_alts'] );
-
-		$body = array(
-			'model'           => $model,
-			'messages'        => array(
-				array( 'role' => 'system', 'content' => $system_prompt ),
-				array( 'role' => 'user', 'content' => $user_prompt ),
-			),
-			'response_format' => array( 'type' => 'json_object' ),
-			'temperature'     => 0.4,
-		);
+		$system_prompt = 'You are an elite Technical SEO Specialist working for Supercraft. Generate AIOSEO compliant meta tags in JSON format.';
+		$user_prompt   = wp_json_encode( $payload );
 
 		$response = wp_remote_post( self::DIRECT_API_URL, array(
 			'headers' => array(
 				'Authorization' => 'Bearer ' . trim( $api_key ),
 				'Content-Type'  => 'application/json',
 			),
-			'body'    => wp_json_encode( $body ),
+			'body'    => wp_json_encode( array(
+				'model'           => $model,
+				'messages'        => array(
+					array( 'role' => 'system', 'content' => $system_prompt ),
+					array( 'role' => 'user', 'content' => $user_prompt ),
+				),
+				'response_format' => array( 'type' => 'json_object' ),
+				'temperature'     => 0.2,
+			) ),
 			'timeout' => 45,
 		) );
 
@@ -148,13 +173,16 @@ class Supercraft_SEO_OpenAI {
 			return $response;
 		}
 
-		$raw = wp_remote_retrieve_body( $response );
-		$decoded = json_decode( $raw, true );
+		$body = wp_remote_retrieve_body( $response );
+		$data = json_decode( $body, true );
 
-		if ( isset( $decoded['choices'][0]['message']['content'] ) ) {
-			return json_decode( $decoded['choices'][0]['message']['content'], true );
+		if ( ! empty( $data['choices'][0]['message']['content'] ) ) {
+			$seo_data = json_decode( $data['choices'][0]['message']['content'], true );
+			if ( is_array( $seo_data ) ) {
+				return $seo_data;
+			}
 		}
 
-		return new WP_Error( 'openai_direct_error', __( 'Failed to retrieve completion from OpenAI.', 'supercraft-seo' ) );
+		return new WP_Error( 'direct_openai_failed', __( 'Direct OpenAI fallback failed.', 'supercraft-seo' ) );
 	}
 }

@@ -62,10 +62,7 @@ class Supercraft_SEO_Elementor_Parser {
 			),
 			'paragraphs'   => array(),
 			'word_count'   => 0,
-			'images'       => array(
-				'all'          => array(),
-				'missing_alts' => array(),
-			),
+			'images'       => array(),
 		);
 
 		if ( $is_builder ) {
@@ -288,15 +285,11 @@ class Supercraft_SEO_Elementor_Parser {
 						$alt = wp_strip_all_tags( $settings['caption'] );
 					}
 
-					$parsed['images']['all'][] = array(
+					$parsed['images'][] = array(
 						'url' => $url,
 						'alt' => $alt,
 						'id'  => $id,
 					);
-
-					if ( empty( trim( $alt ) ) ) {
-						$parsed['images']['missing_alts'][] = $url;
-					}
 				}
 				break;
 		}
@@ -351,23 +344,19 @@ class Supercraft_SEO_Elementor_Parser {
 
 				// Check if already extracted
 				$already_found = false;
-				foreach ( $parsed['images']['all'] as $existing ) {
-					if ( $existing['url'] === $url ) {
+				foreach ( $parsed['images'] as $existing ) {
+					if ( isset( $existing['url'] ) && $existing['url'] === $url ) {
 						$already_found = true;
 						break;
 					}
 				}
 
 				if ( ! $already_found ) {
-					$parsed['images']['all'][] = array(
+					$parsed['images'][] = array(
 						'url' => $url,
 						'alt' => $alt,
 						'id'  => 0,
 					);
-
-					if ( empty( trim( $alt ) ) ) {
-						$parsed['images']['missing_alts'][] = $url;
-					}
 				}
 			}
 		}
@@ -414,10 +403,7 @@ class Supercraft_SEO_Elementor_Parser {
 			),
 			'paragraphs'   => array(),
 			'word_count'   => 0,
-			'images'       => array(
-				'all'          => array(),
-				'missing_alts' => array(),
-			),
+			'images'       => array(),
 		);
 	}
 }
