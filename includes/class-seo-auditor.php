@@ -214,7 +214,7 @@ class Supercraft_SEO_Auditor {
 			$passed[] = __( 'Image Accessibility: All images have descriptive ALT text.', 'supercraft-seo' );
 		}
 
-		// 4. Meta Title & Description Audit (CJK Multibyte Aware)
+		// 4. Meta Title & Description Audit (Standard SERP 120-160 Limit)
 		$meta_title = ! empty( $seo_meta['meta_title'] ) ? $seo_meta['meta_title'] : ( isset( $seo_meta['title'] ) ? $seo_meta['title'] : '' );
 		$meta_desc  = ! empty( $seo_meta['meta_description'] ) ? $seo_meta['meta_description'] : ( isset( $seo_meta['description'] ) ? $seo_meta['description'] : '' );
 
@@ -229,9 +229,8 @@ class Supercraft_SEO_Auditor {
 			$score -= 20;
 		} else {
 			$title_len = mb_strlen( $meta_title );
-			$is_cjk_title = preg_match( '/[\x{4e00}-\x{9fa5}\x{3040}-\x{30ff}\x{3130}-\x{318f}]/u', $meta_title );
-			$min_title = $is_cjk_title ? 18 : 30;
-			$max_title = $is_cjk_title ? 38 : 60;
+			$min_title = 30;
+			$max_title = 60;
 
 			if ( $title_len > $max_title ) {
 				$issues[] = array(
@@ -267,9 +266,8 @@ class Supercraft_SEO_Auditor {
 			$score -= 20;
 		} else {
 			$desc_len = mb_strlen( $meta_desc );
-			$is_cjk_desc = preg_match( '/[\x{4e00}-\x{9fa5}\x{3040}-\x{30ff}\x{3130}-\x{318f}]/u', $meta_desc );
-			$min_desc = $is_cjk_desc ? 45 : 120;
-			$max_desc = $is_cjk_desc ? 85 : 160;
+			$min_desc = 120;
+			$max_desc = 160;
 
 			if ( $desc_len > $max_desc ) {
 				$issues[] = array(
