@@ -7,6 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Supercraft_SEO_Auditor
  * 
  * Performs automated Technical SEO checks and Pre-Flight site-wide health diagnostics.
+ * Multibyte and CJK (Chinese, Japanese, Korean) aware.
  */
 class Supercraft_SEO_Auditor {
 
@@ -213,7 +214,7 @@ class Supercraft_SEO_Auditor {
 			$passed[] = __( 'Image Accessibility: All images have descriptive ALT text.', 'supercraft-seo' );
 		}
 
-		// 4. Meta Title & Description Audit
+		// 4. Meta Title & Description Audit (CJK Multibyte Aware)
 		$meta_title = ! empty( $seo_meta['meta_title'] ) ? $seo_meta['meta_title'] : ( isset( $seo_meta['title'] ) ? $seo_meta['title'] : '' );
 		$meta_desc  = ! empty( $seo_meta['meta_description'] ) ? $seo_meta['meta_description'] : ( isset( $seo_meta['description'] ) ? $seo_meta['description'] : '' );
 
@@ -228,21 +229,25 @@ class Supercraft_SEO_Auditor {
 			$score -= 20;
 		} else {
 			$title_len = mb_strlen( $meta_title );
-			if ( $title_len > 60 ) {
+			$is_cjk_title = preg_match( '/[\x{4e00}-\x{9fa5}\x{3040}-\x{30ff}\x{3130}-\x{318f}]/u', $meta_title );
+			$min_title = $is_cjk_title ? 18 : 30;
+			$max_title = $is_cjk_title ? 38 : 60;
+
+			if ( $title_len > $max_title ) {
 				$issues[] = array(
 					'type'    => 'warning',
 					'code'    => 'meta_title_too_long',
 					'title'   => __( 'Meta Title Too Long', 'supercraft-seo' ),
-					'message' => sprintf( __( 'Meta title is %d characters (Recommended max: 60 characters).', 'supercraft-seo' ), $title_len ),
+					'message' => sprintf( __( 'Meta title is %d characters (Recommended max: %d characters).', 'supercraft-seo' ), $title_len, $max_title ),
 					'fixable' => true,
 				);
 				$score -= 5;
-			} elseif ( $title_len < 30 ) {
+			} elseif ( $title_len < $min_title ) {
 				$issues[] = array(
 					'type'    => 'warning',
 					'code'    => 'meta_title_too_short',
 					'title'   => __( 'Meta Title Too Short', 'supercraft-seo' ),
-					'message' => sprintf( __( 'Meta title is %d characters (Recommended min: 30 characters).', 'supercraft-seo' ), $title_len ),
+					'message' => sprintf( __( 'Meta title is %d characters (Recommended min: %d characters).', 'supercraft-seo' ), $title_len, $min_title ),
 					'fixable' => true,
 				);
 				$score -= 5;
@@ -262,21 +267,25 @@ class Supercraft_SEO_Auditor {
 			$score -= 20;
 		} else {
 			$desc_len = mb_strlen( $meta_desc );
-			if ( $desc_len > 160 ) {
+			$is_cjk_desc = preg_match( '/[\x{4e00}-\x{9fa5}\x{3040}-\x{30ff}\x{3130}-\x{318f}]/u', $meta_desc );
+			$min_desc = $is_cjk_desc ? 45 : 120;
+			$max_desc = $is_cjk_desc ? 85 : 160;
+
+			if ( $desc_len > $max_desc ) {
 				$issues[] = array(
 					'type'    => 'warning',
 					'code'    => 'meta_desc_too_long',
 					'title'   => __( 'Meta Description Too Long', 'supercraft-seo' ),
-					'message' => sprintf( __( 'Meta description is %d characters (Recommended max: 160 characters).', 'supercraft-seo' ), $desc_len ),
+					'message' => sprintf( __( 'Meta description is %d characters (Recommended max: %d characters).', 'supercraft-seo' ), $desc_len, $max_desc ),
 					'fixable' => true,
 				);
 				$score -= 5;
-			} elseif ( $desc_len < 120 ) {
+			} elseif ( $desc_len < $min_desc ) {
 				$issues[] = array(
 					'type'    => 'warning',
 					'code'    => 'meta_desc_too_short',
 					'title'   => __( 'Meta Description Too Short', 'supercraft-seo' ),
-					'message' => sprintf( __( 'Meta description is %d characters (Recommended min: 120 characters).', 'supercraft-seo' ), $desc_len ),
+					'message' => sprintf( __( 'Meta description is %d characters (Recommended min: %d characters).', 'supercraft-seo' ), $desc_len, $min_desc ),
 					'fixable' => true,
 				);
 				$score -= 5;
