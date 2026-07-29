@@ -21,9 +21,9 @@ class Supercraft_SEO_Elementor_Parser {
 	/**
 	 * Constructor
 	 *
-	 * @param Supercraft_SEO $main Main plugin instance.
+	 * @param Supercraft_SEO|null $main Main plugin instance (optional).
 	 */
-	public function __construct( $main ) {
+	public function __construct( $main = null ) {
 		$this->main = $main;
 	}
 
