@@ -804,8 +804,18 @@ class Supercraft_SEO_Admin_Dashboard {
 		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
 		$alts    = isset( $_POST['alts'] ) ? $_POST['alts'] : array();
 
+		// Fallback: On-the-fly AI generation if pre-computed ALTs are missing
+		if ( ( empty( $alts ) || ! is_array( $alts ) ) && $post_id > 0 ) {
+			$page_data = $this->main->elementor_parser->get_page_content( $post_id );
+			$ai_res    = $this->main->openai_service->generate_seo_metadata( $post_id, $page_data );
+
+			if ( ! is_wp_error( $ai_res ) && ! empty( $ai_res['suggested_image_alts'] ) && is_array( $ai_res['suggested_image_alts'] ) ) {
+				$alts = $ai_res['suggested_image_alts'];
+			}
+		}
+
 		if ( empty( $alts ) || ! is_array( $alts ) ) {
-			wp_send_json_error( array( 'message' => __( 'No image alt data provided.', 'supercraft-seo' ) ) );
+			wp_send_json_error( array( 'message' => __( 'No image alt data provided or AI generation failed.', 'supercraft-seo' ) ) );
 		}
 
 		$updated_count = 0;

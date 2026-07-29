@@ -630,8 +630,10 @@
 					html += '<button class="btn-fix-meta-desc" data-postid="' + data.post_id + '">Fix Description via AI</button>';
 				}
 
-				if (issue.code === 'missing_image_alts' && data.seo_data && data.seo_data.suggested_image_alts) {
-					html += '<button class="btn-fix-alt" data-postid="' + data.post_id + '" data-alts=\'' + JSON.stringify(data.seo_data.suggested_image_alts) + '\'>Fix ALTs via AI</button>';
+				if (issue.code === 'missing_image_alts') {
+					var altsData = (data.seo_data && data.seo_data.suggested_image_alts) ? data.seo_data.suggested_image_alts : null;
+					var altsAttr = altsData ? " data-alts='" + JSON.stringify(altsData) + "'" : '';
+					html += '<button class="btn-fix-alt" data-postid="' + data.post_id + '"' + altsAttr + '>Fix ALTs via AI</button>';
 				}
 
 				html += '</li>';
