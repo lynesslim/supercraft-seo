@@ -1,30 +1,34 @@
 /* ==========================================================================
-   Supercraft Technical SEO Plugin - Admin Stylesheet
+   Supercraft Technical SEO Plugin - Modern Clean Light SaaS Stylesheet
+   (Tailwind-Inspired Utility & Design System)
    ========================================================================== */
 
 :root {
-	--sc-bg-dark: #0f172a;
-	--sc-card-bg: #1e293b;
-	--sc-card-border: #334155;
-	--sc-text-main: #f8fafc;
-	--sc-text-muted: #94a3b8;
+	--sc-bg: #f8fafc;
+	--sc-card-bg: #ffffff;
+	--sc-card-border: #e2e8f0;
+	--sc-text-main: #0f172a;
+	--sc-text-muted: #64748b;
 	--sc-accent: #6366f1;
 	--sc-accent-hover: #4f46e5;
-	--sc-gradient-primary: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+	--sc-gradient-primary: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #d946ef 100%);
 	--sc-gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 	--sc-gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
 	--sc-success: #10b981;
 	--sc-warning: #f59e0b;
 	--sc-danger: #ef4444;
 	--sc-radius: 12px;
-	--sc-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+	--sc-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+	--sc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+	--sc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 .supercraft-seo-wrap {
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", sans-serif;
 	max-width: 1350px;
-	margin: 20px auto 40px;
+	margin: 24px auto 48px;
 	color: var(--sc-text-main);
+	-webkit-font-smoothing: antialiased;
 }
 
 /* Header Card */
@@ -33,33 +37,48 @@
 	border: 1px solid var(--sc-card-border);
 	border-radius: var(--sc-radius);
 	padding: 28px 36px;
-	box-shadow: var(--sc-shadow);
+	box-shadow: var(--sc-shadow-sm);
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin-bottom: 24px;
-	background-image: radial-gradient(circle at 90% 10%, rgba(99, 102, 241, 0.15), transparent 40%);
+	margin-bottom: 20px;
+	background-image: radial-gradient(circle at 95% 10%, rgba(99, 102, 241, 0.06), transparent 50%);
+	position: relative;
+	overflow: hidden;
+}
+
+.supercraft-header-card::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 4px;
+	background: var(--sc-gradient-primary);
 }
 
 .supercraft-logo-badge {
-	display: inline-block;
-	background: var(--sc-gradient-primary);
-	color: #fff;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: #e0e7ff;
+	color: #4338ca;
 	font-size: 11px;
-	font-weight: 800;
-	letter-spacing: 1.5px;
-	padding: 4px 12px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	padding: 4px 10px;
 	border-radius: 20px;
 	margin-bottom: 8px;
 	text-transform: uppercase;
 }
 
 .supercraft-header-card h1 {
-	color: #fff;
-	font-size: 26px;
-	font-weight: 700;
+	color: #0f172a;
+	font-size: 24px;
+	font-weight: 800;
 	margin: 0 0 6px 0;
 	padding: 0;
+	letter-spacing: -0.5px;
 }
 
 .supercraft-header-card p {
@@ -67,6 +86,7 @@
 	font-size: 14px;
 	margin: 0;
 	max-width: 750px;
+	line-height: 1.5;
 }
 
 .supercraft-status-badge {
@@ -77,19 +97,19 @@
 	font-weight: 600;
 	padding: 8px 16px;
 	border-radius: 30px;
-	border: 1px solid rgba(255, 255, 255, 0.1);
+	border: 1px solid transparent;
 }
 
 .supercraft-status-badge.active {
-	background: rgba(16, 185, 129, 0.15);
-	color: #34d399;
-	border-color: rgba(16, 185, 129, 0.3);
+	background: #ecfdf5;
+	color: #047857;
+	border-color: #a7f3d0;
 }
 
 .supercraft-status-badge.inactive {
-	background: rgba(245, 158, 11, 0.15);
-	color: #fbbf24;
-	border-color: rgba(245, 158, 11, 0.3);
+	background: #fffbeb;
+	color: #b45309;
+	border-color: #fde68a;
 }
 
 .status-indicator {
@@ -97,7 +117,23 @@
 	height: 8px;
 	border-radius: 50%;
 	background: currentColor;
-	box-shadow: 0 0 8px currentColor;
+}
+
+/* Master Plugin Notice Banner */
+.supercraft-notice {
+	background: #eef2ff !important;
+	border-left-color: #6366f1 !important;
+	border-radius: 8px;
+	padding: 12px 18px !important;
+	margin: 0 0 24px 0 !important;
+	box-shadow: var(--sc-shadow-sm);
+}
+
+.supercraft-notice p {
+	color: #3730a3 !important;
+	font-size: 13px !important;
+	font-weight: 500;
+	margin: 0 !important;
 }
 
 /* Dashboard Grid Layout */
@@ -113,37 +149,49 @@
 	border: 1px solid var(--sc-card-border);
 	border-radius: var(--sc-radius);
 	padding: 24px;
-	box-shadow: var(--sc-shadow);
+	box-shadow: var(--sc-shadow-sm);
 	margin-bottom: 24px;
+	transition: box-shadow 0.2s ease;
+}
+
+.supercraft-card:hover {
+	box-shadow: var(--sc-shadow-md);
 }
 
 .supercraft-card h2 {
-	color: #fff;
-	font-size: 18px;
-	font-weight: 600;
+	color: #0f172a;
+	font-size: 16px;
+	font-weight: 700;
 	margin-top: 0;
-	margin-bottom: 18px;
-	padding-bottom: 12px;
-	border-bottom: 1px solid var(--sc-card-border);
+	margin-bottom: 16px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #f1f5f9;
 }
 
 /* Pre-Flight Card Styles */
 .preflight-card {
-	background: #0f172a;
-	border: 1px solid #334155;
+	background: #ffffff;
+	border: 1px solid #e2e8f0;
 }
 
 .preflight-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin-bottom: 12px;
+	margin-bottom: 8px;
 }
 
 .preflight-header h2 {
 	margin: 0;
 	padding: 0;
 	border: none;
+}
+
+.preflight-card p.description {
+	color: var(--sc-text-muted);
+	font-size: 13px;
+	margin-top: 0;
+	margin-bottom: 16px;
 }
 
 .preflight-list {
@@ -153,55 +201,61 @@
 .preflight-loading {
 	font-size: 13px;
 	color: var(--sc-text-muted);
-	padding: 12px;
-	background: #1e293b;
+	padding: 14px;
+	background: #f8fafc;
 	border-radius: 8px;
+	border: 1px dashed #cbd5e1;
 }
 
 .preflight-item {
 	font-size: 13px;
-	padding: 12px 16px;
+	padding: 14px 18px;
 	border-radius: 8px;
 	margin-bottom: 10px;
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	border-left: 4px solid #334155;
+	border-left: 4px solid #cbd5e1;
 }
 
 .preflight-item.passed {
-	background: rgba(16, 185, 129, 0.1);
-	color: #6ee7b7;
-	border-left-color: var(--sc-success);
+	background: #f0fdf4;
+	color: #166534;
+	border-left-color: #22c55e;
 }
 
 .preflight-item.warning {
-	background: rgba(245, 158, 11, 0.15);
-	color: #fde047;
-	border-left-color: var(--sc-warning);
+	background: #fffbeb;
+	color: #92400e;
+	border-left-color: #f59e0b;
 }
 
 .preflight-item.critical {
-	background: rgba(239, 68, 68, 0.15);
-	color: #fca5a5;
-	border-left-color: var(--sc-danger);
+	background: #fef2f2;
+	color: #991b1b;
+	border-left-color: #ef4444;
 }
 
 .preflight-action-area {
 	display: flex;
 	gap: 10px;
 	align-items: center;
-	margin-top: 4px;
+	margin-top: 6px;
 }
 
 .input-clean-brand {
-	background: #0f172a !important;
-	border: 1px solid #475569 !important;
-	color: #fff !important;
-	padding: 4px 10px !important;
+	background: #ffffff !important;
+	border: 1px solid #cbd5e1 !important;
+	color: #0f172a !important;
+	padding: 6px 12px !important;
 	border-radius: 6px !important;
 	font-size: 12px !important;
-	width: 200px;
+	width: 220px;
+}
+
+.input-clean-brand:focus {
+	border-color: #6366f1 !important;
+	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
 }
 
 /* Form Controls */
@@ -211,7 +265,7 @@
 
 .supercraft-field label {
 	display: block;
-	color: var(--sc-text-main);
+	color: #334155;
 	font-size: 13px;
 	font-weight: 600;
 	margin-bottom: 6px;
@@ -222,11 +276,11 @@
 .supercraft-field select,
 .supercraft-field textarea {
 	width: 100%;
-	background: #0f172a;
-	border: 1px solid #334155;
+	background: #ffffff;
+	border: 1px solid #cbd5e1;
 	border-radius: 8px;
-	color: #fff;
-	padding: 10px 14px;
+	color: #0f172a;
+	padding: 9px 13px;
 	font-size: 13px;
 	box-sizing: border-box;
 	transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -236,7 +290,7 @@
 .supercraft-field select:focus,
 .supercraft-field textarea:focus {
 	border-color: var(--sc-accent);
-	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 	outline: none;
 }
 
@@ -251,14 +305,16 @@
 	border: none !important;
 	color: #fff !important;
 	font-weight: 600 !important;
-	padding: 8px 20px !important;
+	padding: 9px 22px !important;
 	border-radius: 8px !important;
 	cursor: pointer;
-	transition: opacity 0.2s ease;
+	box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2) !important;
+	transition: transform 0.15s ease, opacity 0.2s ease !important;
 }
 
 .supercraft-btn-save:hover {
-	opacity: 0.9;
+	opacity: 0.95;
+	transform: translateY(-1px);
 }
 
 /* Info Card */
@@ -276,25 +332,26 @@
 }
 
 .supercraft-feature-list li strong {
-	color: #fff;
+	color: #0f172a;
 }
 
 /* Hero Action Card */
 .hero-action-card {
-	background: linear-gradient(135deg, #1e1b4b 0%, #1e293b 100%);
-	border: 1px solid rgba(99, 102, 241, 0.3);
+	background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+	border: 1px solid #c7d2fe;
 	text-align: center;
-	padding: 36px 24px;
+	padding: 36px 28px;
 }
 
 .hero-action-header h2 {
 	border: none;
-	font-size: 24px;
+	font-size: 22px;
+	color: #1e1b4b;
 	margin-bottom: 8px;
 }
 
 .hero-action-header p {
-	color: var(--sc-text-muted);
+	color: #475569;
 	font-size: 14px;
 	margin-bottom: 24px;
 }
@@ -304,11 +361,11 @@
 	color: #fff;
 	font-size: 15px;
 	font-weight: 700;
-	padding: 14px 30px;
+	padding: 14px 32px;
 	border: none;
-	border-radius: 12px;
+	border-radius: 10px;
 	cursor: pointer;
-	box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+	box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 	display: inline-flex;
 	align-items: center;
@@ -317,7 +374,7 @@
 
 .supercraft-btn-launch:hover {
 	transform: translateY(-2px);
-	box-shadow: 0 14px 28px -5px rgba(99, 102, 241, 0.6);
+	box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
 }
 
 .supercraft-btn-stop {
@@ -327,9 +384,9 @@
 	font-weight: 700;
 	padding: 14px 28px;
 	border: none;
-	border-radius: 12px;
+	border-radius: 10px;
 	cursor: pointer;
-	box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.4);
+	box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 	display: inline-flex;
 	align-items: center;
@@ -338,17 +395,18 @@
 
 .supercraft-btn-stop:hover {
 	transform: translateY(-2px);
-	box-shadow: 0 14px 28px -5px rgba(239, 68, 68, 0.6);
+	box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
 }
 
 /* Live Progress Bar */
 .supercraft-progress-wrapper {
 	margin-top: 24px;
-	background: #0f172a;
+	background: #ffffff;
 	border-radius: 10px;
-	padding: 16px;
-	border: 1px solid #334155;
+	padding: 18px;
+	border: 1px solid #cbd5e1;
 	text-align: left;
+	box-shadow: var(--sc-shadow-sm);
 }
 
 .supercraft-progress-header {
@@ -356,13 +414,13 @@
 	justify-content: space-between;
 	font-size: 13px;
 	font-weight: 600;
-	color: #fff;
+	color: #0f172a;
 	margin-bottom: 10px;
 }
 
 .supercraft-progress-bar-track {
 	height: 10px;
-	background: #1e293b;
+	background: #e2e8f0;
 	border-radius: 5px;
 	overflow: hidden;
 }
@@ -385,7 +443,7 @@
 
 .results-header h3 {
 	margin: 0;
-	color: #fff;
+	color: #0f172a;
 	font-size: 18px;
 }
 
@@ -395,9 +453,9 @@
 }
 
 .pill-btn {
-	background: #0f172a;
-	border: 1px solid #334155;
-	color: var(--sc-text-muted);
+	background: #ffffff;
+	border: 1px solid #cbd5e1;
+	color: #64748b;
 	padding: 6px 14px;
 	border-radius: 20px;
 	font-size: 12px;
@@ -407,26 +465,28 @@
 }
 
 .pill-btn.active, .pill-btn:hover {
-	background: #334155;
-	color: #fff;
+	background: #f1f5f9;
+	color: #0f172a;
 }
 
-.pill-fixed.active { border-color: var(--sc-success); color: var(--sc-success); }
-.pill-warning.active { border-color: var(--sc-warning); color: var(--sc-warning); }
-.pill-critical.active { border-color: var(--sc-danger); color: var(--sc-danger); }
+.pill-fixed.active { border-color: var(--sc-success); color: #047857; background: #ecfdf5; }
+.pill-warning.active { border-color: var(--sc-warning); color: #b45309; background: #fffbeb; }
+.pill-critical.active { border-color: var(--sc-danger); color: #b91c1c; background: #fef2f2; }
 
 /* Audit Result Cards */
 .audit-item-card {
-	background: #0f172a;
-	border: 1px solid #334155;
+	background: #ffffff;
+	border: 1px solid #e2e8f0;
 	border-radius: 10px;
 	padding: 18px;
 	margin-bottom: 14px;
-	transition: border-color 0.2s ease;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+	box-shadow: var(--sc-shadow-sm);
 }
 
 .audit-item-card:hover {
-	border-color: #475569;
+	border-color: #cbd5e1;
+	box-shadow: var(--sc-shadow-md);
 }
 
 .audit-item-header {
@@ -444,8 +504,9 @@
 
 .audit-item-title-area h4 {
 	margin: 0;
-	color: #fff;
-	font-size: 16px;
+	color: #0f172a;
+	font-size: 15px;
+	font-weight: 700;
 }
 
 .score-badge {
@@ -455,34 +516,37 @@
 	border-radius: 6px;
 }
 
-.score-badge.high { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-.score-badge.medium { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-.score-badge.low { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.score-badge.high { background: #dcfce7; color: #15803d; }
+.score-badge.medium { background: #fef3c7; color: #b45309; }
+.score-badge.low { background: #fee2e2; color: #b91c1c; }
 
 .seo-meta-preview {
-	background: #1e293b;
+	background: #f8fafc;
 	border-radius: 8px;
 	padding: 12px 16px;
 	margin-bottom: 12px;
 	font-size: 13px;
 	border-left: 3px solid var(--sc-accent);
+	border: 1px solid #e2e8f0;
+	border-left-width: 3px;
 }
 
 .seo-meta-preview .preview-title {
-	color: #818cf8;
-	font-weight: 600;
+	color: #4338ca;
+	font-weight: 700;
 	margin-bottom: 4px;
 }
 
 .seo-meta-preview .preview-desc {
-	color: var(--sc-text-muted);
+	color: #475569;
 }
 
 .seo-meta-preview .preview-kw {
 	display: inline-block;
-	background: rgba(99, 102, 241, 0.15);
-	color: #a5b4fc;
+	background: #e0e7ff;
+	color: #3730a3;
 	font-size: 11px;
+	font-weight: 600;
 	padding: 2px 8px;
 	border-radius: 4px;
 	margin-top: 6px;
@@ -496,7 +560,7 @@
 
 .issues-list li {
 	font-size: 13px;
-	padding: 8px 12px;
+	padding: 10px 14px;
 	border-radius: 6px;
 	margin-bottom: 6px;
 	display: flex;
@@ -504,21 +568,22 @@
 	justify-content: space-between;
 }
 
-.issues-list li.issue-critical { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
-.issues-list li.issue-warning { background: rgba(245, 158, 11, 0.15); color: #fde047; }
-.issues-list li.issue-passed { background: rgba(16, 185, 129, 0.1); color: #6ee7b7; }
+.issues-list li.issue-critical { background: #fef2f2; color: #991b1b; }
+.issues-list li.issue-warning { background: #fffbeb; color: #92400e; }
+.issues-list li.issue-passed { background: #f0fdf4; color: #166534; }
 
 .btn-fix-alt {
-	background: #3b82f6;
+	background: #2563eb;
 	color: #fff;
 	border: none;
-	padding: 4px 10px;
-	border-radius: 4px;
+	padding: 5px 12px;
+	border-radius: 6px;
 	font-size: 11px;
 	font-weight: 600;
 	cursor: pointer;
+	transition: background 0.2s ease;
 }
 
 .btn-fix-alt:hover {
-	background: #2563eb;
+	background: #1d4ed8;
 }

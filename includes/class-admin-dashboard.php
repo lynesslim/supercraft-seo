@@ -107,6 +107,14 @@ class Supercraft_SEO_Admin_Dashboard {
 			return;
 		}
 
+		// Load Tailwind CSS CDN for modern utility class support
+		wp_enqueue_script(
+			'tailwindcss-cdn',
+			'https://cdn.tailwindcss.com',
+			array(),
+			'3.4.1'
+		);
+
 		wp_enqueue_style(
 			'supercraft-seo-admin-css',
 			SUPERCRAFT_SEO_URL . 'assets/css/admin.css',
@@ -145,7 +153,6 @@ class Supercraft_SEO_Admin_Dashboard {
 		$embed_code     = Supercraft_SEO_Validation::get_embed_code();
 		$model          = get_option( 'supercraft_seo_openai_model', 'gpt-4o-mini' );
 		$brand_voice    = get_option( 'supercraft_seo_brand_voice', 'Professional, authoritative, yet engaging' );
-		$aioseo_on      = $this->main->aioseo_bridge->is_aioseo_active();
 		?>
 		<div class="wrap supercraft-seo-wrap">
 			<!-- Header Banner -->
@@ -163,7 +170,7 @@ class Supercraft_SEO_Admin_Dashboard {
 
 			<!-- Master Plugin Integration Notice -->
 			<?php if ( $is_master ) : ?>
-				<div class="notice notice-info supercraft-notice">
+				<div class="supercraft-notice">
 					<p>🛡️ License validation is managed globally by the <strong>Supercraft Master Plugin</strong>.</p>
 				</div>
 			<?php endif; ?>
@@ -220,13 +227,13 @@ class Supercraft_SEO_Admin_Dashboard {
 							<button type="submit" class="button button-primary supercraft-btn-save">
 								<?php _e( 'Save Preferences', 'supercraft-seo' ); ?>
 							</button>
-							<span class="supercraft-save-msg" style="display:none;"></span>
+							<span class="supercraft-save-msg" style="display:none;margin-left:10px;font-size:12px;font-weight:600;"></span>
 						</form>
 					</div>
 
 					<div class="supercraft-card info-card">
-						<h3>🌐 Endpoint Integration</h3>
-						<p style="font-size:12px;color:#94a3b8;">Connected to Supercraft endpoint: <code>https://superapp.supercraft.my</code></p>
+						<h2 style="font-size:14px;margin-bottom:8px;border:none;">🌐 Endpoint Integration</h2>
+						<p style="font-size:12px;color:#64748b;margin:0;">Connected to Supercraft endpoint:<br/><code style="font-size:11px;color:#4338ca;background:#eef2ff;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;">https://superapp.supercraft.my</code></p>
 					</div>
 				</div>
 
