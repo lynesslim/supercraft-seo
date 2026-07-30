@@ -38,7 +38,7 @@ class Supercraft_SEO_OpenAI {
 		}
 
 		$brand_voice = get_option( 'supercraft_seo_brand_voice', 'Professional, authoritative, yet engaging' );
-		$model       = get_option( 'supercraft_seo_openai_model', 'gpt-4o-mini' );
+		$model       = get_option( 'supercraft_seo_openai_model', 'gpt-5.4-nano' );
 		$site_name   = get_bloginfo( 'name' );
 		$embed_code  = Supercraft_SEO_Validation::get_embed_code();
 

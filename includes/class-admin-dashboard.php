@@ -153,7 +153,7 @@ class Supercraft_SEO_Admin_Dashboard {
 		$is_validated   = Supercraft_SEO_Validation::is_validated();
 		$is_master      = Supercraft_SEO_Validation::is_master_plugin_active();
 		$embed_code     = Supercraft_SEO_Validation::get_embed_code();
-		$model          = get_option( 'supercraft_seo_openai_model', 'gpt-4o-mini' );
+		$model          = get_option( 'supercraft_seo_openai_model', 'gpt-5.4-nano' );
 		$brand_voice    = get_option( 'supercraft_seo_brand_voice', 'Professional, authoritative, yet engaging' );
 
 		$available_posts = get_posts( array(
@@ -224,8 +224,10 @@ class Supercraft_SEO_Admin_Dashboard {
 							<div class="supercraft-field">
 								<label for="openai_model"><?php _e( 'AI Model Target', 'supercraft-seo' ); ?></label>
 								<select id="openai_model" name="openai_model">
-									<option value="gpt-4o-mini" <?php selected( $model, 'gpt-4o-mini' ); ?>>GPT-4o Mini (Fast & Cost Effective - Recommended)</option>
-									<option value="gpt-4o" <?php selected( $model, 'gpt-4o' ); ?>>GPT-4o (Maximum Quality)</option>
+									<option value="gpt-5.4-nano" <?php selected( $model, 'gpt-5.4-nano' ); ?>>GPT-5.4 Nano (Ultra Fast & Cost Efficient - Default)</option>
+									<option value="gpt-5-mini" <?php selected( $model, 'gpt-5-mini' ); ?>>GPT-5 Mini (High Capability & Speed)</option>
+									<option value="gpt-4o-mini" <?php selected( $model, 'gpt-4o-mini' ); ?>>GPT-4o Mini (Legacy Fast)</option>
+									<option value="gpt-4o" <?php selected( $model, 'gpt-4o' ); ?>>GPT-4o (Legacy Standard)</option>
 								</select>
 							</div>
 
@@ -782,7 +784,7 @@ class Supercraft_SEO_Admin_Dashboard {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'supercraft-seo' ) ) );
 		}
 
-		$model       = isset( $_POST['openai_model'] ) ? sanitize_text_field( $_POST['openai_model'] ) : 'gpt-4o-mini';
+		$model       = isset( $_POST['openai_model'] ) ? sanitize_text_field( $_POST['openai_model'] ) : 'gpt-5.4-nano';
 		$brand_voice = isset( $_POST['brand_voice'] ) ? sanitize_textarea_field( $_POST['brand_voice'] ) : '';
 
 		update_option( 'supercraft_seo_openai_model', $model );

@@ -3,7 +3,7 @@
  * Plugin Name: Supercraft Technical SEO Engine
  * Plugin URI:  https://supercraft.io/plugins/seo
  * Description: One-click Technical SEO post-completion suite for Elementor and All in One SEO (AIOSEO). Uses OpenAI to auto-generate meta tags and runs comprehensive technical SEO audits.
- * Version:     1.9.6
+ * Version:     1.10.0
  * Author:      Supercraft Team
  * Author URI:  https://supercraft.io
  * Text Domain: supercraft-seo
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define Plugin Constants
-define( 'SUPERCRAFT_SEO_VERSION', '1.9.6' );
+define( 'SUPERCRAFT_SEO_VERSION', '1.10.0' );
 define( 'SUPERCRAFT_SEO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SUPERCRAFT_SEO_URL', plugin_dir_url( __FILE__ ) );
 define( 'SUPERCRAFT_SEO_BASENAME', plugin_basename( __FILE__ ) );
@@ -70,7 +70,7 @@ add_action( 'plugins_loaded', 'supercraft_seo_init' );
  */
 register_activation_hook( __FILE__, function() {
 	if ( false === get_option( 'supercraft_seo_openai_model' ) ) {
-		update_option( 'supercraft_seo_openai_model', 'gpt-4o-mini' );
+		update_option( 'supercraft_seo_openai_model', 'gpt-5.4-nano' );
 	}
 	if ( false === get_option( 'supercraft_seo_brand_voice' ) ) {
 		update_option( 'supercraft_seo_brand_voice', 'Professional, authoritative, yet engaging' );
