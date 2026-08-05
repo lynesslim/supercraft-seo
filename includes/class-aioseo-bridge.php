@@ -35,9 +35,14 @@ class Supercraft_SEO_AIOSEO_Bridge {
 
 		$title           = isset( $seo_data['meta_title'] ) ? sanitize_text_field( $seo_data['meta_title'] ) : ( isset( $seo_data['title'] ) ? sanitize_text_field( $seo_data['title'] ) : '' );
 		$description     = isset( $seo_data['meta_description'] ) ? sanitize_text_field( $seo_data['meta_description'] ) : ( isset( $seo_data['description'] ) ? sanitize_text_field( $seo_data['description'] ) : '' );
+
+		// Smart clamp meta title and description to strict SERP character boundaries (<= 58 chars, <= 158 chars)
+		$title       = $this->clamp_title_length( $title );
+		$description = $this->clamp_desc_length( $description );
+
 		$focus_keyword   = isset( $seo_data['focus_keyword'] ) ? sanitize_text_field( $seo_data['focus_keyword'] ) : ( isset( $seo_data['focus_keyphrase'] ) ? sanitize_text_field( $seo_data['focus_keyphrase'] ) : '' );
-		$og_title        = isset( $seo_data['og_title'] ) ? sanitize_text_field( $seo_data['og_title'] ) : $title;
-		$og_description  = isset( $seo_data['og_description'] ) ? sanitize_text_field( $seo_data['og_description'] ) : $description;
+		$og_title        = isset( $seo_data['og_title'] ) ? $this->clamp_title_length( sanitize_text_field( $seo_data['og_title'] ) ) : $title;
+		$og_description  = isset( $seo_data['og_description'] ) ? $this->clamp_desc_length( sanitize_text_field( $seo_data['og_description'] ) ) : $description;
 		$secondary_kw    = isset( $seo_data['secondary_keywords'] ) && is_array( $seo_data['secondary_keywords'] ) ? array_map( 'sanitize_text_field', $seo_data['secondary_keywords'] ) : array();
 
 		// 1. Update Standard WordPress Post Meta Keys
@@ -161,5 +166,58 @@ class Supercraft_SEO_AIOSEO_Bridge {
 			'og_title'         => get_post_meta( $post_id, '_aioseo_og_title', true ),
 			'og_description'   => get_post_meta( $post_id, '_aioseo_og_description', true ),
 		);
+	}
+
+	/**
+	 * Smart clamp meta title length to <= 58 characters.
+	 */
+	public function clamp_title_length( $title ) {
+		$title = trim( (string) $title );
+		if ( empty( $title ) || mb_strlen( $title ) <= 58 ) {
+			return $title;
+		}
+
+		if ( preg_match( '/^(.*?)\s*(\|\s*[^|]+)$/u', $title, $matches ) ) {
+			$hook    = trim( $matches[1] );
+			$suffix  = $matches[2];
+			$max_len = 58 - mb_strlen( $suffix );
+			if ( $max_len > 15 ) {
+				$trimmed_hook = mb_substr( $hook, 0, $max_len );
+				$last_space   = mb_strrpos( $trimmed_hook, ' ' );
+				if ( false !== $last_space && $last_space > 15 ) {
+					$trimmed_hook = mb_substr( $trimmed_hook, 0, $last_space );
+				}
+				return trim( $trimmed_hook ) . $suffix;
+			}
+		}
+
+		$trimmed    = mb_substr( $title, 0, 57 );
+		$last_space = mb_strrpos( $trimmed, ' ' );
+		if ( false !== $last_space && $last_space > 20 ) {
+			$trimmed = mb_substr( $trimmed, 0, $last_space );
+		}
+		return trim( $trimmed );
+	}
+
+	/**
+	 * Smart clamp meta description length to <= 158 characters.
+	 */
+	public function clamp_desc_length( $desc ) {
+		$desc = trim( (string) $desc );
+		if ( empty( $desc ) || mb_strlen( $desc ) <= 158 ) {
+			return $desc;
+		}
+
+		$sub155      = mb_substr( $desc, 0, 155 );
+		$last_period = mb_strrpos( $sub155, '.' );
+
+		if ( false !== $last_period && $last_period >= 110 ) {
+			return trim( mb_substr( $sub155, 0, $last_period + 1 ) );
+		}
+
+		$last_space = mb_strrpos( $sub155, ' ' );
+		$trimmed    = ( false !== $last_space && $last_space > 100 ) ? mb_substr( $sub155, 0, $last_space ) : $sub155;
+		$trimmed    = preg_replace( '/[,;:-]$/u', '', trim( $trimmed ) );
+		return $trimmed . '.';
 	}
 }
