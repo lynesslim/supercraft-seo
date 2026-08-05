@@ -41,6 +41,7 @@ class Supercraft_SEO_Admin_Dashboard {
 		add_action( 'wp_ajax_supercraft_seo_save_settings', array( $this, 'ajax_save_settings' ) );
 		add_action( 'wp_ajax_supercraft_seo_run_preflight', array( $this, 'ajax_run_preflight' ) );
 		add_action( 'wp_ajax_supercraft_seo_update_site_title', array( $this, 'ajax_update_site_title' ) );
+		add_action( 'wp_ajax_supercraft_seo_update_site_tagline', array( $this, 'ajax_update_site_tagline' ) );
 		add_action( 'wp_ajax_supercraft_seo_update_blog_public', array( $this, 'ajax_update_blog_public' ) );
 		
 		// Server-Side Background Queue AJAX
@@ -133,8 +134,9 @@ class Supercraft_SEO_Admin_Dashboard {
 		);
 
 		wp_localize_script( 'supercraft-seo-admin-js', 'supercraftSEO', array(
-			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
-			'nonce'       => wp_create_nonce( 'supercraft_seo_nonce' ),
+			'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
+			'generalSettingsUrl' => admin_url( 'options-general.php' ),
+			'nonce'              => wp_create_nonce( 'supercraft_seo_nonce' ),
 			'isValidated' => Supercraft_SEO_Validation::is_validated(),
 			'siteTitle'   => get_bloginfo( 'name' ),
 			'strings'     => array(
@@ -708,6 +710,29 @@ class Supercraft_SEO_Admin_Dashboard {
 		wp_send_json_success( array(
 			'message'   => sprintf( __( 'Site title updated to "%s"!', 'supercraft-seo' ), esc_html( $new_title ) ),
 			'new_title' => $new_title,
+		) );
+	}
+
+	/**
+	 * AJAX: Update Site Tagline
+	 */
+	public function ajax_update_site_tagline() {
+		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'supercraft-seo' ) ) );
+		}
+
+		$new_tagline = isset( $_POST['new_tagline'] ) ? sanitize_text_field( $_POST['new_tagline'] ) : '';
+		if ( empty( $new_tagline ) ) {
+			wp_send_json_error( array( 'message' => __( 'Site tagline cannot be empty.', 'supercraft-seo' ) ) );
+		}
+
+		update_option( 'blogdescription', $new_tagline );
+
+		wp_send_json_success( array(
+			'message'     => sprintf( __( 'Site tagline updated to "%s"!', 'supercraft-seo' ), esc_html( $new_tagline ) ),
+			'new_tagline' => $new_tagline,
 		) );
 	}
 

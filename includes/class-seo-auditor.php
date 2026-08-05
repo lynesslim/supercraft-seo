@@ -125,11 +125,12 @@ class Supercraft_SEO_Auditor {
 		$raw_tagline = get_bloginfo( 'description' );
 		if ( empty( trim( $raw_tagline ) ) || 'Just another WordPress site' === $raw_tagline ) {
 			$checks[] = array(
-				'code'    => 'raw_tagline',
-				'type'    => 'warning',
-				'title'   => __( 'Default or Missing Site Tagline', 'supercraft-seo' ),
-				'message' => __( 'Site tagline is missing or default ("Just another WordPress site"). A clear tagline helps AI craft better brand context.', 'supercraft-seo' ),
-				'fixable' => false,
+				'code'            => 'raw_tagline',
+				'type'            => 'warning',
+				'title'           => __( 'Default or Missing Site Tagline', 'supercraft-seo' ),
+				'message'         => __( 'Site tagline is missing or default ("Just another WordPress site"). A clear tagline helps AI craft better brand context.', 'supercraft-seo' ),
+				'fixable'         => true,
+				'current_tagline' => 'Just another WordPress site' === $raw_tagline ? '' : $raw_tagline,
 			);
 		} else {
 			$checks[] = array(

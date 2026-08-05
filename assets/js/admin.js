@@ -309,6 +309,14 @@
 					html += '</div>';
 				}
 
+				if (check.code === 'raw_tagline') {
+					html += '<div class="preflight-action-area" style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">';
+					html += '<input type="text" class="input-clean-tagline" value="' + escapeHtml(check.current_tagline || '') + '" placeholder="Enter Brand Tagline..." style="flex:1;max-width:320px;" />';
+					html += '<button class="button button-primary button-small btn-fix-site-tagline">Update Tagline</button>';
+					html += '<a href="' + (supercraftSEO.generalSettingsUrl || 'options-general.php') + '" target="_blank" class="button button-secondary button-small">Open Settings ↗</a>';
+					html += '</div>';
+				}
+
 				if (check.code === 'search_indexing_blocked') {
 					html += '<div class="preflight-action-area">';
 					html += '<button class="button button-primary button-small btn-fix-indexing">Enable Indexing Now</button>';
@@ -346,6 +354,43 @@
 					} else {
 						$btn.text('Failed').css({ background: '#ef4444' });
 					}
+				}
+			});
+		});
+
+		// 1-Click Fix Tagline Handler
+		$(document).on('click', '.btn-fix-site-tagline', function (e) {
+			e.preventDefault();
+			var $btn = $(this);
+			var $input = $btn.siblings('.input-clean-tagline');
+			var newTagline = $input.val();
+
+			if (!newTagline) {
+				alert('Please enter a site tagline.');
+				return;
+			}
+			$btn.text('Updating...').prop('disabled', true);
+
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_update_site_tagline',
+					nonce: supercraftSEO.nonce,
+					new_tagline: newTagline,
+				},
+				success: function (res) {
+					if (res.success) {
+						$btn.text('✅ Saved!').css({ background: '#10b981' });
+						runPreflightScan();
+					} else {
+						alert(res.data && res.data.message ? res.data.message : 'Failed to update tagline.');
+						$btn.text('Update Tagline').prop('disabled', false);
+					}
+				},
+				error: function () {
+					alert('Server error updating site tagline.');
+					$btn.text('Update Tagline').prop('disabled', false);
 				}
 			});
 		});
