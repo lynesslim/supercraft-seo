@@ -43,6 +43,7 @@ class Supercraft_SEO_Admin_Dashboard {
 		add_action( 'wp_ajax_supercraft_seo_update_site_title', array( $this, 'ajax_update_site_title' ) );
 		add_action( 'wp_ajax_supercraft_seo_update_site_tagline', array( $this, 'ajax_update_site_tagline' ) );
 		add_action( 'wp_ajax_supercraft_seo_update_blog_public', array( $this, 'ajax_update_blog_public' ) );
+		add_action( 'wp_ajax_supercraft_seo_install_litespeed', array( $this, 'ajax_install_litespeed' ) );
 		
 		// Server-Side Background Queue AJAX
 		add_action( 'wp_ajax_supercraft_seo_start_bg_queue', array( $this, 'ajax_start_bg_queue' ) );
@@ -136,6 +137,7 @@ class Supercraft_SEO_Admin_Dashboard {
 		wp_localize_script( 'supercraft-seo-admin-js', 'supercraftSEO', array(
 			'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
 			'generalSettingsUrl' => admin_url( 'options-general.php' ),
+			'pluginInstallUrl'   => admin_url( 'plugin-install.php?s=litespeed-cache&tab=search&type=term' ),
 			'nonce'              => wp_create_nonce( 'supercraft_seo_nonce' ),
 			'isValidated' => Supercraft_SEO_Validation::is_validated(),
 			'siteTitle'   => get_bloginfo( 'name' ),
@@ -751,6 +753,57 @@ class Supercraft_SEO_Admin_Dashboard {
 		wp_send_json_success( array(
 			'message' => __( 'Search engine indexing is now open to crawlers!', 'supercraft-seo' ),
 		) );
+	}
+
+	/**
+	 * AJAX: 1-Click Install & Activate LiteSpeed Cache
+	 */
+	public function ajax_install_litespeed() {
+		check_ajax_referer( 'supercraft_seo_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'install_plugins' ) || ! current_user_can( 'activate_plugins' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'supercraft-seo' ) ) );
+		}
+
+		include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+		include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+		include_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+		$plugin_file = 'litespeed-cache/litespeed-cache.php';
+
+		// If already installed, just activate it
+		if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) ) {
+			$result = activate_plugin( $plugin_file );
+			if ( is_wp_error( $result ) ) {
+				wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+			}
+			wp_send_json_success( array( 'message' => __( 'LiteSpeed Cache activated successfully!', 'supercraft-seo' ) ) );
+		}
+
+		// Download and install via WP Plugin Upgrader
+		$api = plugins_api( 'plugin_information', array(
+			'slug'   => 'litespeed-cache',
+			'fields' => array( 'sections' => false ),
+		) );
+
+		if ( is_wp_error( $api ) ) {
+			wp_send_json_error( array( 'message' => $api->get_error_message() ) );
+		}
+
+		$skin     = new Automatic_Upgrader_Skin();
+		$upgrader = new Plugin_Upgrader( $skin );
+		$install  = $upgrader->install( $api->download_link );
+
+		if ( is_wp_error( $install ) ) {
+			wp_send_json_error( array( 'message' => $install->get_error_message() ) );
+		}
+
+		$activate = activate_plugin( $plugin_file );
+		if ( is_wp_error( $activate ) ) {
+			wp_send_json_error( array( 'message' => $activate->get_error_message() ) );
+		}
+
+		wp_send_json_success( array( 'message' => __( 'LiteSpeed Cache installed and activated successfully!', 'supercraft-seo' ) ) );
 	}
 
 	/**

@@ -323,6 +323,14 @@
 					html += '</div>';
 				}
 
+				if (check.code === 'litespeed_inactive') {
+					var btnText = check.installed ? 'Activate LiteSpeed Cache' : '1-Click Install LiteSpeed';
+					html += '<div class="preflight-action-area" style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">';
+					html += '<button class="button button-primary button-small btn-fix-litespeed">' + btnText + '</button>';
+					html += '<a href="' + (supercraftSEO.pluginInstallUrl || 'plugin-install.php?s=litespeed-cache&tab=search&type=term') + '" target="_blank" class="button button-secondary button-small">Plugin Search ↗</a>';
+					html += '</div>';
+				}
+
 				html += '</div>';
 			});
 
@@ -415,6 +423,35 @@
 					} else {
 						$btn.text('Failed').css({ background: '#ef4444' });
 					}
+				}
+			});
+		});
+
+		// 1-Click Fix / Install LiteSpeed Handler
+		$(document).on('click', '.btn-fix-litespeed', function (e) {
+			e.preventDefault();
+			var $btn = $(this);
+			$btn.text('Installing & Activating...').prop('disabled', true);
+
+			$.ajax({
+				url: supercraftSEO.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'supercraft_seo_install_litespeed',
+					nonce: supercraftSEO.nonce,
+				},
+				success: function (res) {
+					if (res.success) {
+						$btn.text('✅ LiteSpeed Active!').css({ background: '#10b981' });
+						runPreflightScan();
+					} else {
+						alert(res.data && res.data.message ? res.data.message : 'LiteSpeed installation failed.');
+						$btn.text('Try Installing Again').prop('disabled', false);
+					}
+				},
+				error: function () {
+					alert('Server error installing LiteSpeed Cache.');
+					$btn.text('Try Installing Again').prop('disabled', false);
 				}
 			});
 		});
