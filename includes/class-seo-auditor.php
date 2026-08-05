@@ -179,6 +179,32 @@ class Supercraft_SEO_Auditor {
 			);
 		}
 
+		// 9. LiteSpeed Cache Plugin Status Check
+		$is_litespeed_active = defined( 'LITESPEED_TIME_OFFSET' ) || defined( 'LITESPEED_DIR' ) || class_exists( '\LiteSpeed\Litespeed' ) || class_exists( 'LiteSpeed_Cache' );
+		if ( ! $is_litespeed_active ) {
+			if ( ! function_exists( 'is_plugin_active' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			}
+			$is_litespeed_active = is_plugin_active( 'litespeed-cache/litespeed-cache.php' );
+		}
+
+		if ( $is_litespeed_active ) {
+			$checks[] = array(
+				'code'    => 'litespeed_active',
+				'type'    => 'passed',
+				'title'   => __( 'LiteSpeed Cache Engine', 'supercraft-seo' ),
+				'message' => __( 'LiteSpeed Cache is active and accelerating page performance.', 'supercraft-seo' ),
+			);
+		} else {
+			$checks[] = array(
+				'code'    => 'litespeed_inactive',
+				'type'    => 'warning',
+				'title'   => __( 'LiteSpeed Cache Not Active', 'supercraft-seo' ),
+				'message' => __( 'LiteSpeed Cache plugin is not active. Installing & activating LiteSpeed Cache is highly recommended for high Core Web Vitals and fast page speeds.', 'supercraft-seo' ),
+				'fixable' => false,
+			);
+		}
+
 		return array(
 			'can_proceed' => $can_proceed,
 			'checks'      => $checks,
