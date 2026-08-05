@@ -260,7 +260,7 @@ class Supercraft_SEO_Admin_Dashboard {
 								<span class="dashicons dashicons-update"></span> Run Pre-Flight Scan
 							</button>
 						</div>
-						<p class="description">Verifies site title quality, search indexing visibility, and permalink structures before launching AI meta generation.</p>
+						<p class="description">Verifies site title quality, favicon, tagline, search indexing visibility, SSL security, and permalink structures before launching AI meta generation.</p>
 						
 						<div id="supercraft-preflight-results" class="preflight-list">
 							<div class="preflight-loading">Click "Run Pre-Flight Scan" to check site identity settings.</div>

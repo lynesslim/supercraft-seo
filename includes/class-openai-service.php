@@ -68,16 +68,18 @@ class Supercraft_SEO_OpenAI {
 
 		// Prepare Supercraft Payload
 		$payload = array(
-			'plugin_name'  => Supercraft_SEO_Validation::PLUGIN_SLUG,
-			'embed_code'   => $embed_code,
-			'domain'       => get_site_url(),
-			'post_id'      => $post_id,
-			'site_name'    => $site_name,
-			'page_title'   => $page_title,
-			'content'      => $content,
-			'missing_alts' => $missing_alts,
-			'brand_voice'  => $brand_voice,
-			'model'        => $model,
+			'plugin_name'   => Supercraft_SEO_Validation::PLUGIN_SLUG,
+			'embed_code'    => $embed_code,
+			'domain'        => get_site_url(),
+			'post_id'       => $post_id,
+			'site_name'     => $site_name,
+			'site_language' => get_bloginfo( 'language' ),
+			'locale'        => get_locale(),
+			'page_title'    => $page_title,
+			'content'       => $content,
+			'missing_alts'  => $missing_alts,
+			'brand_voice'   => $brand_voice,
+			'model'         => $model,
 		);
 
 		// Send to superapp.supercraft.my

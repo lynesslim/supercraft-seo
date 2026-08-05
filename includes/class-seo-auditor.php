@@ -103,6 +103,81 @@ class Supercraft_SEO_Auditor {
 			);
 		}
 
+		// 5. Site Icon / Favicon Check
+		if ( ! has_site_icon() ) {
+			$checks[] = array(
+				'code'    => 'missing_favicon',
+				'type'    => 'warning',
+				'title'   => __( 'Site Icon (Favicon) Missing', 'supercraft-seo' ),
+				'message' => __( 'No site icon (favicon) set. Upload a site icon in WordPress Settings / Customizer so your brand logo appears in Google search results.', 'supercraft-seo' ),
+				'fixable' => false,
+			);
+		} else {
+			$checks[] = array(
+				'code'    => 'favicon_active',
+				'type'    => 'passed',
+				'title'   => __( 'Site Icon (Favicon)', 'supercraft-seo' ),
+				'message' => __( 'Site icon is configured for search engine results pages.', 'supercraft-seo' ),
+			);
+		}
+
+		// 6. Site Tagline Quality Check
+		$raw_tagline = get_bloginfo( 'description' );
+		if ( empty( trim( $raw_tagline ) ) || 'Just another WordPress site' === $raw_tagline ) {
+			$checks[] = array(
+				'code'    => 'raw_tagline',
+				'type'    => 'warning',
+				'title'   => __( 'Default or Missing Site Tagline', 'supercraft-seo' ),
+				'message' => __( 'Site tagline is missing or default ("Just another WordPress site"). A clear tagline helps AI craft better brand context.', 'supercraft-seo' ),
+				'fixable' => false,
+			);
+		} else {
+			$checks[] = array(
+				'code'    => 'clean_tagline',
+				'type'    => 'passed',
+				'title'   => __( 'Site Tagline', 'supercraft-seo' ),
+				'message' => sprintf( __( 'Site tagline configured: "%s"', 'supercraft-seo' ), esc_html( $raw_tagline ) ),
+			);
+		}
+
+		// 7. SSL / HTTPS Security Check
+		$site_url  = get_option( 'siteurl' );
+		$is_https  = ( 0 === strpos( $site_url, 'https://' ) ) || is_ssl();
+		if ( ! $is_https ) {
+			$checks[] = array(
+				'code'    => 'http_unsecured',
+				'type'    => 'warning',
+				'title'   => __( 'HTTP Protocol (Unsecured)', 'supercraft-seo' ),
+				'message' => __( 'Site URL does not use HTTPS. Google treats HTTPS as a positive search ranking factor.', 'supercraft-seo' ),
+				'fixable' => false,
+			);
+		} else {
+			$checks[] = array(
+				'code'    => 'https_secured',
+				'type'    => 'passed',
+				'title'   => __( 'SSL / HTTPS Security', 'supercraft-seo' ),
+				'message' => __( 'Site URL is serving securely over HTTPS.', 'supercraft-seo' ),
+			);
+		}
+
+		// 8. Supercraft License & Validation Check
+		if ( class_exists( 'Supercraft_SEO_Validation' ) && ! Supercraft_SEO_Validation::is_validated() ) {
+			$checks[] = array(
+				'code'    => 'unvalidated_license',
+				'type'    => 'warning',
+				'title'   => __( 'Supercraft Plugin License Unvalidated', 'supercraft-seo' ),
+				'message' => __( 'Plugin is not validated. Enter your embed code or activate the Supercraft Master Plugin to enable full AI metadata capabilities.', 'supercraft-seo' ),
+				'fixable' => false,
+			);
+		} else {
+			$checks[] = array(
+				'code'    => 'validated_license',
+				'type'    => 'passed',
+				'title'   => __( 'Supercraft License Status', 'supercraft-seo' ),
+				'message' => __( 'Supercraft license active and validated.', 'supercraft-seo' ),
+			);
+		}
+
 		return array(
 			'can_proceed' => $can_proceed,
 			'checks'      => $checks,
