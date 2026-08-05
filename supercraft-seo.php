@@ -32,6 +32,7 @@ if ( file_exists( SUPERCRAFT_SEO_PATH . 'plugin-update-checker/plugin-update-che
 		__FILE__,
 		'supercraft-seo'
 	);
+	$supercraft_seo_update_checker->setBranch( 'main' );
 }
 
 /**
